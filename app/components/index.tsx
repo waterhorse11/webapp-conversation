@@ -248,8 +248,12 @@ const Main: FC<IMainProps> = () => {
           prompt_template: promptTemplate,
           prompt_variables,
         } as PromptConfig)
+        console.log(appParams)
         setVisionConfig({
-          ...file_upload?.image,
+          enabled: file_upload?.allowed_file_types.includes('image') && !!file_upload?.enabled,
+          number_limits: 2,
+          detail: Resolution.low,
+          transfer_methods: [TransferMethod.local_file],
           image_file_size_limit: system_parameters?.system_parameters || 0,
         })
         setConversationList(conversations as ConversationItem[])
