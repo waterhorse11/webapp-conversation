@@ -22,6 +22,7 @@ import AppUnavailable from '@/app/components/app-unavailable'
 import { API_KEY, APP_ID, APP_INFO, isShowPrompt, promptTemplate } from '@/config'
 import type { Annotation as AnnotationType } from '@/types/log'
 import { addFileInfos, sortAgentSorts } from '@/utils/tools'
+import ModelSelecter from '@/app/components/base/model-selecter'
 
 export type IMainProps = {
   params: any
@@ -89,8 +90,13 @@ const Main: FC<IMainProps> = () => {
     setConversationIdChangeBecauseOfNew(true)
     setCurrInputs(inputs)
     setChatStarted()
-    // parse variables in introduction
-    setChatList(generateNewChatListWithOpenStatement('', inputs))
+
+    // 发送模型选择信息
+    if (inputs.model_name) {
+      setChatList(generateNewChatListWithOpenStatement(`model_name=${inputs.model_name}`, inputs))
+    } else {
+      setChatList(generateNewChatListWithOpenStatement('', inputs))
+    }
   }
   const hasSetInputs = (() => {
     if (!isNewConversation)
@@ -131,6 +137,8 @@ const Main: FC<IMainProps> = () => {
         const newChatList: ChatItem[] = generateNewChatListWithOpenStatement(notSyncToStateIntroduction, notSyncToStateInputs)
 
         data.forEach((item: any) => {
+          if (item.query.startsWith('model_name=') || item.query === 'status:selected model')
+            return
           newChatList.push({
             id: `question-${item.id}`,
             content: item.query,
@@ -335,6 +343,41 @@ const Main: FC<IMainProps> = () => {
       notify({ type: 'info', message: t('app.errorMessage.waitForResponse') })
       return
     }
+
+    // 如果是模型选择消息，直接发送但不显示在聊天界面
+    if (message.startsWith('model_name=')) {
+      const data: Record<string, any> = {
+        inputs: currInputs,
+        query: message,
+        conversation_id: isNewConversation ? null : currConversationId,
+      }
+
+      setRespondingTrue()
+      sendChatMessage(data, {
+        getAbortController: (abortController) => {
+          setAbortController(abortController)
+        },
+        onData: () => { },
+        onCompleted: () => {
+          setRespondingFalse()
+        },
+        onError: () => {
+          setRespondingFalse()
+        },
+        onFile: () => { },
+        onThought: () => { },
+        onMessageEnd: () => {
+          setRespondingFalse()
+        },
+        onMessageReplace: () => { },
+        onWorkflowStarted: () => { },
+        onNodeStarted: () => { },
+        onNodeFinished: () => { },
+        onWorkflowFinished: () => { },
+      })
+      return
+    }
+
     const data: Record<string, any> = {
       inputs: currInputs,
       query: message,
@@ -616,6 +659,27 @@ const Main: FC<IMainProps> = () => {
     )
   }
 
+  // 添加状态保存最后选择的模型
+  const [lastSelectedModel, setLastSelectedModel] = useState<string>('doubao-1-5')
+
+  // 添加一个 useEffect 来初始化时获取最后选择的模型
+  useEffect(() => {
+    if (!isNewConversation && currConversationId) {
+      fetchChatList(currConversationId).then((res: any) => {
+        const { data } = res
+        // 找到最后一条模型选择消息
+        const lastModelMessage = [...data].reverse().find((item: any) =>
+          item.query.startsWith('model_name=')
+        )
+        if (lastModelMessage) {
+          const modelName = lastModelMessage.query.replace('model_name=', '')
+          setLastSelectedModel(modelName)
+          console.log(modelName)
+        }
+      })
+    }
+  }, [currConversationId, isNewConversation])
+
   if (appUnavailable)
     return <AppUnavailable isUnknownReason={isUnknownReason} errMessage={!hasSetAppConfig ? 'Please set APP_ID and API_KEY in config/index.tsx' : ''} />
 
@@ -645,18 +709,25 @@ const Main: FC<IMainProps> = () => {
         )}
         {/* main */}
         <div className='flex-grow flex flex-col h-[calc(100vh_-_3rem)] overflow-y-auto'>
-          <ConfigSence
-            conversationName={conversationName}
-            hasSetInputs={hasSetInputs}
-            isPublicVersion={isShowPrompt}
-            siteInfo={APP_INFO}
-            promptConfig={promptConfig}
-            onStartChat={handleStartChat}
-            canEditInputs={canEditInputs}
-            savedInputs={currInputs as Record<string, any>}
-            onInputsChange={setCurrInputs}
-          ></ConfigSence>
-
+          {!hasSetInputs && (
+            <ConfigSence
+              conversationName={conversationName}
+              hasSetInputs={hasSetInputs}
+              isPublicVersion={isShowPrompt}
+              siteInfo={APP_INFO}
+              promptConfig={promptConfig}
+              onStartChat={handleStartChat}
+              canEditInputs={canEditInputs}
+              savedInputs={currInputs as Record<string, any>}
+              onInputsChange={setCurrInputs}
+            ></ConfigSence>
+          )}
+          {hasSetInputs && (
+            <ModelSelecter
+              onSend={handleSend}
+              initialModel={lastSelectedModel}
+            ></ModelSelecter>
+          )}
           {
             hasSetInputs && (
               <div className='relative grow h-[200px] pc:w-[794px] max-w-full mobile:w-full pb-[66px] mx-auto mb-3.5 overflow-hidden'>
@@ -670,8 +741,8 @@ const Main: FC<IMainProps> = () => {
                     visionConfig={visionConfig}
                   />
                 </div>
-              </div>)
-          }
+              </div>
+            )}
         </div>
       </div>
     </div>
