@@ -15,6 +15,7 @@ import Toast from '@/app/components/base/toast'
 import ChatImageUploader from '@/app/components/base/image-uploader/chat-image-uploader'
 import ImageList from '@/app/components/base/image-uploader/image-list'
 import { useImageFiles } from '@/app/components/base/image-uploader/hooks'
+import OnlineSearch from '@/app/components/base/online-search'
 
 export type IChatProps = {
   chatList: ChatItem[]
@@ -33,6 +34,8 @@ export type IChatProps = {
   isResponding?: boolean
   controlClearQuery?: number
   visionConfig?: VisionSettings
+  currConversationId?: string
+  isOnlineSearch?: boolean
 }
 
 const Chat: FC<IChatProps> = ({
@@ -46,6 +49,8 @@ const Chat: FC<IChatProps> = ({
   isResponding,
   controlClearQuery,
   visionConfig,
+  currConversationId,
+  isOnlineSearch,
 }) => {
   const { t } = useTranslation()
   const { notify } = Toast
@@ -157,6 +162,11 @@ const Chat: FC<IChatProps> = ({
                         disabled={files.length >= visionConfig.number_limits}
                       />
                       <div className='mx-1 w-[1px] h-4 bg-black/5' />
+                      <OnlineSearch
+                        onSend={onSend}
+                        isActive={isOnlineSearch}
+                      />
+                      <div className='mx-1 w-[1px] h-4 bg-black/5' />
                     </div>
                     <div className='pl-[52px]'>
                       <ImageList
@@ -173,7 +183,7 @@ const Chat: FC<IChatProps> = ({
               <Textarea
                 className={`
                   block w-full px-2 pr-[118px] py-[7px] leading-5 max-h-none text-sm text-gray-700 outline-none appearance-none resize-none
-                  ${visionConfig?.enabled && 'pl-12'}
+                  ${visionConfig?.enabled && 'pl-[84px]'}
                 `}
                 value={query}
                 onChange={handleContentChange}

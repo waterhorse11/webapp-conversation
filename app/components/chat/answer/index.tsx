@@ -14,6 +14,7 @@ import Tooltip from '@/app/components/base/tooltip'
 import WorkflowProcess from '@/app/components/workflow/workflow-process'
 import { Markdown } from '@/app/components/base/markdown'
 import type { Emoji } from '@/types/tools'
+import Toast from '@/app/components/base/toast'
 
 const OperationBtn = ({ innerContent, onClick, className }: { innerContent: React.ReactNode; onClick?: () => void; className?: string }) => (
   <div
@@ -54,6 +55,13 @@ const IconWrapper: FC<{ children: React.ReactNode | string }> = ({ children }) =
   </div>
 }
 
+// 添加复制图标组件
+const CopyIcon: FC<{ className?: string }> = ({ className }) => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    <path d="M2.66667 10.6667H2C1.64638 10.6667 1.30724 10.5262 1.05719 10.2761C0.807138 10.0261 0.666667 9.68696 0.666667 9.33333V2.66667C0.666667 2.31304 0.807138 1.97391 1.05719 1.72386C1.30724 1.47381 1.64638 1.33333 2 1.33333H8.66667C9.02029 1.33333 9.35943 1.47381 9.60948 1.72386C9.85952 1.97391 10 2.31304 10 2.66667V3.33333M7.33333 5.33333H14C14.7364 5.33333 15.3333 5.93029 15.3333 6.66667V13.3333C15.3333 14.0697 14.7364 14.6667 14 14.6667H7.33333C6.59695 14.6667 6 14.0697 6 13.3333V6.66667C6 5.93029 6.59695 5.33333 7.33333 5.33333Z" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+
 type IAnswerProps = {
   item: ChatItem
   feedbackDisabled: boolean
@@ -74,6 +82,7 @@ const Answer: FC<IAnswerProps> = ({
   const isAgentMode = !!agent_thoughts && agent_thoughts.length > 0
 
   const { t } = useTranslation()
+  const { notify } = Toast
 
   /**
  * Render feedback results (distinguish between users and administrators)
@@ -115,16 +124,33 @@ const Answer: FC<IAnswerProps> = ({
    */
   const renderItemOperation = () => {
     const userOperation = () => {
-      return feedback?.rating
-        ? null
-        : <div className='flex gap-1'>
-          <Tooltip selector={`user-feedback-${randomString(16)}`} content={t('common.operation.like') as string}>
-            {OperationBtn({ innerContent: <IconWrapper><RatingIcon isLike={true} /></IconWrapper>, onClick: () => onFeedback?.(id, { rating: 'like' }) })}
+      return (
+        <div className='flex gap-1'>
+          <Tooltip selector={`copy-${randomString(16)}`} content={t('common.operation.copy') as string}>
+            {OperationBtn({
+              innerContent: (
+                <IconWrapper>
+                  <CopyIcon />
+                </IconWrapper>
+              ),
+              onClick: () => {
+                navigator.clipboard.writeText(content || '')
+                notify({ type: 'success', message: t('common.operation.copy') })
+              }
+            })}
           </Tooltip>
-          <Tooltip selector={`user-feedback-${randomString(16)}`} content={t('common.operation.dislike') as string}>
-            {OperationBtn({ innerContent: <IconWrapper><RatingIcon isLike={false} /></IconWrapper>, onClick: () => onFeedback?.(id, { rating: 'dislike' }) })}
-          </Tooltip>
+          {!feedback?.rating && (
+            <>
+              <Tooltip selector={`user-feedback-${randomString(16)}`} content={t('common.operation.like') as string}>
+                {OperationBtn({ innerContent: <IconWrapper><RatingIcon isLike={true} /></IconWrapper>, onClick: () => onFeedback?.(id, { rating: 'like' }) })}
+              </Tooltip>
+              <Tooltip selector={`user-feedback-${randomString(16)}`} content={t('common.operation.dislike') as string}>
+                {OperationBtn({ innerContent: <IconWrapper><RatingIcon isLike={false} /></IconWrapper>, onClick: () => onFeedback?.(id, { rating: 'dislike' }) })}
+              </Tooltip>
+            </>
+          )}
         </div>
+      )
     }
 
     return (

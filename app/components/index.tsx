@@ -52,7 +52,7 @@ const Main: FC<IMainProps> = () => {
 
   useEffect(() => {
     if (APP_INFO?.title)
-      document.title = `${APP_INFO.title} - Powered by Dify`
+      document.title = `${APP_INFO.title} - Powered by IT`
   }, [APP_INFO?.title])
 
   // onData change thought (the produce obj). https://github.com/immerjs/immer/issues/576
@@ -137,8 +137,12 @@ const Main: FC<IMainProps> = () => {
         const newChatList: ChatItem[] = generateNewChatListWithOpenStatement(notSyncToStateIntroduction, notSyncToStateInputs)
 
         data.forEach((item: any) => {
-          if (item.query.startsWith('model_name=') || item.query === 'status:selected model')
+          // 过滤掉模型选择消息和联网搜索消息
+          if (item.query.startsWith('model_name=') ||
+            item.query.startsWith('online_search=') ||
+            item.query === 'status:selected model')
             return
+
           newChatList.push({
             id: `question-${item.id}`,
             content: item.query,
@@ -345,7 +349,7 @@ const Main: FC<IMainProps> = () => {
     }
 
     // 如果是模型选择消息，直接发送但不显示在聊天界面
-    if (message.startsWith('model_name=')) {
+    if (message.startsWith('model_name=') || message.startsWith('online_search=')) {
       const data: Record<string, any> = {
         inputs: currInputs,
         query: message,
@@ -661,8 +665,8 @@ const Main: FC<IMainProps> = () => {
 
   // 添加状态保存最后选择的模型
   const [lastSelectedModel, setLastSelectedModel] = useState<string>('doubao-1-5')
+  const [isOnlineSearch, setIsOnlineSearch] = useState(false)
 
-  // 添加一个 useEffect 来初始化时获取最后选择的模型
   useEffect(() => {
     if (!isNewConversation && currConversationId) {
       fetchChatList(currConversationId).then((res: any) => {
@@ -674,9 +678,27 @@ const Main: FC<IMainProps> = () => {
         if (lastModelMessage) {
           const modelName = lastModelMessage.query.replace('model_name=', '')
           setLastSelectedModel(modelName)
-          console.log(modelName)
+        }
+        else {
+          setLastSelectedModel('doubao-1-5')
+        }
+
+        // 找到最后一条联网搜索消息
+        const lastSearchMessage = [...data].reverse().find((item: any) =>
+          item.query.startsWith('online_search=')
+        )
+        if (lastSearchMessage) {
+          const isOnline = lastSearchMessage.query.replace('online_search=', '') === 'true'
+          setIsOnlineSearch(isOnline)
+        }
+        else {
+          setIsOnlineSearch(false)
         }
       })
+    }
+    else {
+      setLastSelectedModel('doubao-1-5')
+      setIsOnlineSearch(false)
     }
   }, [currConversationId, isNewConversation])
 
@@ -730,7 +752,7 @@ const Main: FC<IMainProps> = () => {
           )}
           {
             hasSetInputs && (
-              <div className='relative grow h-[200px] pc:w-[794px] max-w-full mobile:w-full pb-[66px] mx-auto mb-3.5 overflow-hidden'>
+              <div className='relative grow h-[200px] pc:w-[994px] max-w-full mobile:w-full pb-[66px] mx-auto mb-3.5 overflow-hidden'>
                 <div className='h-full overflow-y-auto' ref={chatListDomRef}>
                   <Chat
                     chatList={chatList}
@@ -739,6 +761,8 @@ const Main: FC<IMainProps> = () => {
                     isResponding={isResponding}
                     checkCanSend={checkCanSend}
                     visionConfig={visionConfig}
+                    currConversationId={currConversationId}
+                    isOnlineSearch={isOnlineSearch}
                   />
                 </div>
               </div>

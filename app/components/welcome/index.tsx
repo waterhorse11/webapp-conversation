@@ -340,10 +340,10 @@ const Welcome: FC<IWelcomeProps> = ({
               </div>
               : <div>
               </div>}
-            <div className='flex items-center pr-3 space-x-3 cursor-default'>
+            {/* <div className='flex items-center pr-3 space-x-3 cursor-default'>
               <span className='uppercase'>{t('app.chat.powerBy')}</span>
               <FootLogo />
-            </div>
+            </div> */}
           </div>
         )}
       </div>
