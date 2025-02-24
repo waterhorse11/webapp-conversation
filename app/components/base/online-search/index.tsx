@@ -36,10 +36,19 @@ const OnlineSearch: FC<OnlineSearchProps> = ({
             }
         >
             <div
-                className='flex items-center cursor-pointer p-2 hover:bg-gray-100 rounded-lg'
+                className={`
+                    flex items-center gap-1 cursor-pointer px-1.5 py-2 rounded-lg border
+                    ${isActive
+                        ? 'border-blue-600 hover:bg-blue-50'
+                        : 'border-gray-200 hover:bg-gray-50'
+                    }
+                `}
                 onClick={handleClick}
             >
                 <Search className={`w-4 h-4 ${isActive ? 'text-blue-600' : 'text-gray-500'}`} />
+                <span className={`text-xs ${isActive ? 'text-blue-600' : 'text-gray-500'}`}>
+                    联网搜索
+                </span>
             </div>
         </Tooltip>
     )

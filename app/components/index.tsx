@@ -10,7 +10,7 @@ import Toast from '@/app/components/base/toast'
 import Sidebar from '@/app/components/sidebar'
 import ConfigSence from '@/app/components/config-scence'
 import Header from '@/app/components/header'
-import { fetchAppParams, fetchChatList, fetchConversations, generationConversationName, sendChatMessage, updateFeedback } from '@/service'
+import { fetchAppParams, fetchChatList, fetchConversations, generationConversationName, sendChatMessage, updateFeedback, deleteConversation } from '@/service'
 import type { ChatItem, ConversationItem, Feedbacktype, PromptConfig, VisionFile, VisionSettings } from '@/types/app'
 import { Resolution, TransferMethod, WorkflowRunningStatus } from '@/types/app'
 import Chat from '@/app/components/chat'
@@ -357,22 +357,29 @@ const Main: FC<IMainProps> = () => {
       }
 
       setRespondingTrue()
-      sendChatMessage(data, {
+      await sendChatMessage(data, {
         getAbortController: (abortController) => {
           setAbortController(abortController)
         },
-        onData: () => { },
+        onData: (message: string, isFirstMessage: boolean, { conversationId: newConversationId }) => {
+          if (isNewConversation && newConversationId) {
+            setCurrConversationId(newConversationId, APP_ID, true)
+            setConversationIdChangeBecauseOfNew(true)
+            fetchConversations().then(({ data: allConversations }: any) => {
+              setConversationList(allConversations)
+            })
+          }
+        },
         onCompleted: () => {
           setRespondingFalse()
+          setConversationIdChangeBecauseOfNew(true)
         },
         onError: () => {
           setRespondingFalse()
         },
         onFile: () => { },
         onThought: () => { },
-        onMessageEnd: () => {
-          setRespondingFalse()
-        },
+        onMessageEnd: () => { },
         onMessageReplace: () => { },
         onWorkflowStarted: () => { },
         onNodeStarted: () => { },
@@ -475,12 +482,8 @@ const Main: FC<IMainProps> = () => {
 
         if (getConversationIdChangeBecauseOfNew()) {
           const { data: allConversations }: any = await fetchConversations()
-          const newItem: any = await generationConversationName(allConversations[0].id)
-
-          const newAllConversations = produce(allConversations, (draft: any) => {
-            draft[0].name = newItem.name
-          })
-          setConversationList(newAllConversations as any)
+          const newConversationId = allConversations[0].id
+          await updateConversationName(newConversationId)
         }
         setConversationIdChangeBecauseOfNew(false)
         resetNewConversationInputs()
@@ -659,12 +662,15 @@ const Main: FC<IMainProps> = () => {
         onCurrentIdChange={handleConversationIdChange}
         currentId={currConversationId}
         copyRight={APP_INFO.copyright || APP_INFO.title}
+        onPinConversation={handlePinConversation}
+        onRenameConversation={handleRenameConversation}
+        onDeleteConversation={handleDeleteConversation}
       />
     )
   }
 
   // 添加状态保存最后选择的模型
-  const [lastSelectedModel, setLastSelectedModel] = useState<string>('doubao-1-5')
+  const [lastSelectedModel, setLastSelectedModel] = useState<string>('deepseek-v3')
   const [isOnlineSearch, setIsOnlineSearch] = useState(false)
 
   useEffect(() => {
@@ -680,7 +686,7 @@ const Main: FC<IMainProps> = () => {
           setLastSelectedModel(modelName)
         }
         else {
-          setLastSelectedModel('doubao-1-5')
+          setLastSelectedModel('deepseek-v3')
         }
 
         // 找到最后一条联网搜索消息
@@ -697,10 +703,88 @@ const Main: FC<IMainProps> = () => {
       })
     }
     else {
-      setLastSelectedModel('doubao-1-5')
+      setLastSelectedModel('deepseek-v3')
       setIsOnlineSearch(false)
     }
   }, [currConversationId, isNewConversation])
+
+  // 添加更新会话标题的函数
+  const updateConversationName = async (conversationId: string) => {
+    try {
+      const { data: messages }: any = await fetchChatList(conversationId)
+
+      // 找到第一条正常的用户消息，排除模型选择和在线搜索消息
+      const firstUserMessage = messages
+        .find((msg: any) => !msg.query.startsWith('model_name=') && !msg.query.startsWith('online_search='))
+
+      if (firstUserMessage) {
+        const title = firstUserMessage.query.slice(0, 12) + (firstUserMessage.query.length >= 12 ? '...' : '')
+
+        // 直接使用 generationConversationName
+        await generationConversationName(conversationId, title)
+
+        // 更新本地状态
+        const { data: allConversations }: any = await fetchConversations()
+        setConversationList(allConversations)
+      }
+    } catch (err) {
+      console.error('Failed to update conversation name:', err)
+    }
+  }
+
+  const handlePinConversation = async (id: string) => {
+    try {
+      // 在前端实现置顶逻辑
+      const newConversationList = produce(conversationList, (draft) => {
+        const index = draft.findIndex(item => item.id === id)
+        if (index > 0) {
+          const [item] = draft.splice(index, 1)
+          draft.unshift(item)
+        }
+      })
+      setConversationList(newConversationList)
+      notify({ type: 'success', message: '置顶成功' })
+    } catch (err) {
+      notify({ type: 'error', message: '置顶失败' })
+    }
+  }
+
+  const handleRenameConversation = async (id: string, name: string) => {
+    try {
+      await generationConversationName(id, name)
+      const { data: allConversations }: any = await fetchConversations()
+      setConversationList(allConversations)
+      notify({ type: 'success', message: '重命名成功' })
+    } catch (err) {
+      notify({ type: 'error', message: '重命名失败' })
+    }
+  }
+
+  const handleDeleteConversation = async (id: string) => {
+    try {
+      // 先删除会话
+      await deleteConversation(id)
+
+      // 如果删除的是当前会话，先重置状态
+      if (id === currConversationId) {
+        handleConversationIdChange('-1')
+        setChatNotStarted()
+        resetNewConversationInputs()
+      }
+
+      // 最后再获取最新的会话列表
+      const { data: allConversations }: any = await fetchConversations()
+      setConversationList(allConversations)
+
+      // 如果还有其他会话，切换到第一个会话
+      if (allConversations.length > 0 && id === currConversationId)
+        handleConversationIdChange(allConversations[0].id)
+
+      notify({ type: 'success', message: '删除成功' })
+    } catch (err) {
+      notify({ type: 'error', message: '删除失败' })
+    }
+  }
 
   if (appUnavailable)
     return <AppUnavailable isUnknownReason={isUnknownReason} errMessage={!hasSetAppConfig ? 'Please set APP_ID and API_KEY in config/index.tsx' : ''} />

@@ -1,5 +1,5 @@
 import type { IOnCompleted, IOnData, IOnError, IOnFile, IOnMessageEnd, IOnMessageReplace, IOnNodeFinished, IOnNodeStarted, IOnThought, IOnWorkflowFinished, IOnWorkflowStarted } from './base'
-import { get, post, ssePost } from './base'
+import { get, post, ssePost, del } from './base'
 import type { Feedbacktype } from '@/types/app'
 
 export const sendChatMessage = async (
@@ -57,6 +57,20 @@ export const updateFeedback = async ({ url, body }: { url: string; body: Feedbac
   return post(url, { body })
 }
 
-export const generationConversationName = async (id: string) => {
-  return post(`conversations/${id}/name`, { body: { auto_generate: true } })
+export const generationConversationName = async (id: string, name?: string) => {
+  return post(`conversations/${id}/name`, {
+    body: {
+      auto_generate: !name, // 如果提供了name就不自动生成
+      name: name || ''
+    }
+  })
 }
+
+export const deleteConversation = async (id: string) => {
+  return del(`conversations/${id}`, {
+    body: {
+      user: 'abc-123'  // 添加必需的 user 参数
+    }
+  })
+}
+

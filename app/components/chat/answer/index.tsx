@@ -84,6 +84,30 @@ const Answer: FC<IAnswerProps> = ({
   const { t } = useTranslation()
   const { notify } = Toast
 
+  // 添加一个复制文本的辅助函数
+  const copyToClipboard = (text: string) => {
+    if (navigator.clipboard && window.isSecureContext) {
+      // 对于 HTTPS 或 localhost 环境
+      navigator.clipboard.writeText(text)
+        .then(() => notify({ type: 'success', message: t('common.operation.copy') }))
+        .catch(() => notify({ type: 'error', message: t('common.operation.copyFailed') }))
+    } else {
+      // 降级方案
+      const textArea = document.createElement('textarea')
+      textArea.value = text
+      document.body.appendChild(textArea)
+      textArea.focus()
+      textArea.select()
+      try {
+        document.execCommand('copy')
+        notify({ type: 'success', message: t('common.operation.copy') })
+      } catch (err) {
+        notify({ type: 'error', message: t('common.operation.copyFailed') })
+      }
+      document.body.removeChild(textArea)
+    }
+  }
+
   /**
  * Render feedback results (distinguish between users and administrators)
  * User reviews cannot be cancelled in Console
@@ -133,10 +157,7 @@ const Answer: FC<IAnswerProps> = ({
                   <CopyIcon />
                 </IconWrapper>
               ),
-              onClick: () => {
-                navigator.clipboard.writeText(content || '')
-                notify({ type: 'success', message: t('common.operation.copy') })
-              }
+              onClick: () => copyToClipboard(content || '')
             })}
           </Tooltip>
           {!feedback?.rating && (

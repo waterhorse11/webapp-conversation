@@ -155,13 +155,14 @@ const Chat: FC<IChatProps> = ({
               {
                 visionConfig?.enabled && (
                   <>
-                    <div className='absolute bottom-2 left-2 flex items-center'>
-                      <ChatImageUploader
+                    {/* <div className='absolute bottom-2 left-2 flex items-center'> */}
+                    {/* <ChatImageUploader
                         settings={visionConfig}
                         onUpload={onUpload}
                         disabled={files.length >= visionConfig.number_limits}
-                      />
-                      <div className='mx-1 w-[1px] h-4 bg-black/5' />
+                      /> */}
+                    {/* <div className='mx-1 w-[1px] h-4 bg-black/5' /> */}
+                    <div className='absolute bottom-[6.5px] left-2 flex items-center'>
                       <OnlineSearch
                         onSend={onSend}
                         isActive={isOnlineSearch}
@@ -183,7 +184,7 @@ const Chat: FC<IChatProps> = ({
               <Textarea
                 className={`
                   block w-full px-2 pr-[118px] py-[7px] leading-5 max-h-none text-sm text-gray-700 outline-none appearance-none resize-none
-                  ${visionConfig?.enabled && 'pl-[84px]'}
+                  ${visionConfig?.enabled && 'pl-[93px]'}
                 `}
                 value={query}
                 onChange={handleContentChange}
