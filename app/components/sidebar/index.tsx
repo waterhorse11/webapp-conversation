@@ -129,7 +129,7 @@ const Sidebar: FC<ISidebarProps> = ({
                             }}
                           >
                             <StarIcon className="w-4 h-4" />
-                            置顶会话
+                            置顶对话
                           </button>
                           <button
                             className={`w-full px-3 py-2 text-sm text-left flex items-center gap-2 ${item.name === 'New conversation'
@@ -159,7 +159,7 @@ const Sidebar: FC<ISidebarProps> = ({
                             }}
                           >
                             <TrashIcon className="w-4 h-4" />
-                            删除会话
+                            删除对话
                           </button>
                         </div>
                       )}

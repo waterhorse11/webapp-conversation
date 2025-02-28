@@ -38,7 +38,7 @@ const ModelSelecter: FC<IModelSelecterProps> = ({
 
     return (
         <Listbox value={selectedModel} onChange={handleModelChange}>
-            <div className="relative min-w-[155px] max-w-fit">
+            <div className="relative min-w-[165px] max-w-fit">
                 <Listbox.Button className="relative w-full h-7 px-3 text-sm text-left bg-white border border-gray-200 rounded-lg cursor-pointer hover:border-gray-300 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-colors">
                     <span className="block truncate">{selectedModel}</span>
                     <span className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
