@@ -31,15 +31,15 @@ const OnlineSearch: FC<OnlineSearchProps> = ({
             selector="online-search-tooltip"
             htmlContent={
                 <div className="text-sm">
-                    {isActive ? '已联网' : '未联网'}
+                    {isActive ? '已联网' : '联网获取实时信息'}
                 </div>
             }
         >
             <div
                 className={`
-                    flex items-center gap-1 cursor-pointer px-1.5 py-2 rounded-lg border
+                    flex items-center gap-1 h-[32px] cursor-pointer px-1.5 py-2 rounded-2xl border
                     ${isActive
-                        ? 'border-blue-600 hover:bg-blue-50'
+                        ? 'border-blue-600 hover:bg-blue-50 bg-blue-50'
                         : 'border-gray-200 hover:bg-gray-50'
                     }
                 `}
@@ -47,7 +47,7 @@ const OnlineSearch: FC<OnlineSearchProps> = ({
             >
                 <Search className={`w-4 h-4 ${isActive ? 'text-blue-600' : 'text-gray-500'}`} />
                 <span className={`text-xs ${isActive ? 'text-blue-600' : 'text-gray-500'}`}>
-                    联网搜索
+                    {isActive ? '已联网' : '未联网'}
                 </span>
             </div>
         </Tooltip>

@@ -74,3 +74,10 @@ export const deleteConversation = async (id: string) => {
   })
 }
 
+export const stopChatMessageResponding = async (taskId: string) => {
+  return post(`chat-messages/${taskId}/stop`, {
+    body: {
+      user: 'abc-123'
+    }
+  })
+}

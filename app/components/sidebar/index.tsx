@@ -1,13 +1,13 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import type { FC } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   ChatBubbleOvalLeftEllipsisIcon,
-  PencilSquareIcon,
   EllipsisHorizontalIcon,
   StarIcon,
   PencilIcon,
   TrashIcon,
+  ClockIcon,
 } from '@heroicons/react/24/outline'
 import { ChatBubbleOvalLeftEllipsisIcon as ChatBubbleOvalLeftEllipsisSolidIcon } from '@heroicons/react/24/solid'
 import Button from '@/app/components/base/button'
@@ -16,6 +16,10 @@ import type { ConversationItem } from '@/types/app'
 import { format, fromUnixTime } from 'date-fns'
 import Tooltip from '@/app/components/base/tooltip'
 import { Modal } from '@/app/components/base/modal'
+import ConfigSence from '@/app/components/config-scence'
+import Header from '@/app/components/header'
+import { APP_INFO } from '@/config'
+import { useRouter } from 'next/navigation'
 
 function classNames(...classes: any[]) {
   return classes.filter(Boolean).join(' ')
@@ -31,6 +35,8 @@ export type ISidebarProps = {
   onPinConversation?: (id: string) => void
   onRenameConversation?: (id: string, name: string) => void
   onDeleteConversation?: (id: string) => void
+  onHandleConversationIdChange: (id: string) => void
+  onHideSideBar: () => void
 }
 
 const Sidebar: FC<ISidebarProps> = ({
@@ -41,6 +47,8 @@ const Sidebar: FC<ISidebarProps> = ({
   onPinConversation,
   onRenameConversation,
   onDeleteConversation,
+  onHandleConversationIdChange,
+  onHideSideBar
 }) => {
   const { t } = useTranslation()
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
@@ -48,6 +56,9 @@ const Sidebar: FC<ISidebarProps> = ({
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [editingName, setEditingName] = useState('')
   const [currentItem, setCurrentItem] = useState<ConversationItem | null>(null)
+  const [showAllConversations, setShowAllConversations] = useState(false)
+  const [menuPosition, setMenuPosition] = useState<{ top: number; right: number } | null>(null);
+  const router = useRouter()
 
   const handleRename = (item: ConversationItem) => {
     setCurrentItem(item)
@@ -60,120 +71,213 @@ const Sidebar: FC<ISidebarProps> = ({
     setShowDeleteModal(true)
   }
 
+  const handleMenuClick = (e: React.MouseEvent<Element>, itemId: string) => {
+    e.stopPropagation();
+    if (openMenuId === itemId) {
+      setOpenMenuId(null);
+      setMenuPosition(null);
+    } else {
+      const rect = e.currentTarget.getBoundingClientRect();
+      setMenuPosition({
+        top: rect.bottom,
+        right: 240 - rect.right
+      });
+      setOpenMenuId(itemId);
+    }
+  };
+
+  const handleConversationClick = (id: string) => {
+    router.push('/')
+    onCurrentIdChange(id)
+  }
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.menu-container') && !target.closest('.menu-btn')) {
+        setOpenMenuId(null);
+        setMenuPosition(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   return (
     <>
       <div
-        className="shrink-0 flex flex-col overflow-y-auto bg-white pc:w-[244px] tablet:w-[192px] mobile:w-[240px]  border-r border-gray-200 tablet:h-[calc(100vh_-_3rem)] mobile:h-screen"
+        className="shrink-0 flex flex-col overflow-y-auto bg-gray-100 pc:w-[240px] tablet:w-[192px] mobile:w-[240px] border-gray-200 tablet:h-[calc(110vh_-_3rem)] mobile:h-screen"
       >
-        {list.length < MAX_CONVERSATION_LENTH && (
-          <div className="flex flex-shrink-0 p-4 !pb-0">
+        <Header
+          title={copyRight}
+          onHideSideBar={onHideSideBar}
+          onCreateNewChat={() => {
+            router.push('/')
+            onCurrentIdChange('-1')
+          }}
+        />
+        <div className="flex flex-col flex-shrink-0 p-2 !pb-0">
+          <div className="flex flex-shrink-0 p-0 !pb-0">
             <Button
-              onClick={() => { onCurrentIdChange('-1') }}
-              className="group block w-full flex-shrink-0 !justify-start !h-9 text-primary-600 items-center text-sm">
-              <PencilSquareIcon className="mr-2 h-4 w-4" /> {t('app.chat.newChat')}
+              type="custom"
+              onClick={() => {
+                router.push('/')
+                onCurrentIdChange('-1')
+              }}
+              className="group block w-full flex-shrink-0 !justify-start !h-11 !pl-2 !text-black text-sm bg-white hover:bg-white !hover:shadow-lg hover:border-gray-300 items-center border-solid border border-gray-200 rounded-xl">
+              <svg xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" className="mr-2 h-5 w-5" width="20" height="20" viewBox="0 0 1024 1024">
+                <path d="M475.136 561.152v89.74336c0 20.56192 16.50688 37.23264 36.864 37.23264s36.864-16.67072 36.864-37.23264v-89.7024h89.7024c20.60288 0 37.2736-16.54784 37.2736-36.864 0-20.39808-16.67072-36.864-37.2736-36.864H548.864V397.63968A37.0688 37.0688 0 0 0 512 360.448c-20.35712 0-36.864 16.67072-36.864 37.2736v89.7024H385.4336a37.0688 37.0688 0 0 0-37.2736 36.864c0 20.35712 16.67072 36.864 37.2736 36.864h89.7024z" fill="currentColor" />
+                <path d="M512 118.784c-223.96928 0-405.504 181.57568-405.504 405.504 0 78.76608 22.44608 152.3712 61.35808 214.6304l-44.27776 105.6768a61.44 61.44 0 0 0 56.68864 85.1968H512c223.92832 0 405.504-181.53472 405.504-405.504 0-223.92832-181.57568-405.504-405.504-405.504z m-331.776 405.504a331.776 331.776 0 1 1 331.73504 331.776H198.656l52.59264-125.5424-11.59168-16.62976A330.09664 330.09664 0 0 1 180.224 524.288z" fill="currentColor" />
+              </svg> {t('app.chat.newChat')}
             </Button>
           </div>
-        )}
 
-        <nav className="mt-4 flex-1 space-y-1 bg-white p-4 !pt-0">
-          {list.map((item) => {
-            const isCurrent = item.id === currentId
-            const ItemIcon
-              = isCurrent ? ChatBubbleOvalLeftEllipsisSolidIcon : ChatBubbleOvalLeftEllipsisIcon
-            return (
-              <div
-                onClick={() => onCurrentIdChange(item.id)}
-                key={item.id}
-                onMouseLeave={() => setOpenMenuId(null)}
-                className={classNames(
-                  isCurrent
-                    ? 'bg-primary-50 text-primary-600'
-                    : 'text-gray-700 hover:bg-gray-100 hover:text-gray-700',
-                  'group flex items-center rounded-md px-2 py-2 text-sm font-medium cursor-pointer',
-                )}
-              >
-                <ItemIcon
-                  className={classNames(
-                    isCurrent
-                      ? 'text-primary-600'
-                      : 'text-gray-400 group-hover:text-gray-500',
-                    'mr-3 h-5 w-5 flex-shrink-0',
-                  )}
-                  aria-hidden="true"
-                />
-                <div className="flex-1 flex justify-between items-center min-w-0 gap-2">
-                  <span className="truncate max-w-[120px]">{item.name}</span>
-                  <div className="flex-shrink-0 group-hover:hidden">
-                    {item.created_at && (
-                      <span className="text-xs text-gray-400">
-                        {format(fromUnixTime(Number(item.created_at)), 'MM-dd')}
-                      </span>
-                    )}
-                  </div>
-                  <div className={`hidden ${item.name !== 'New conversation' && item.name !== '新的对话' ? 'group-hover:block' : ''} flex-shrink-0 relative`}>
-                    <div className="relative">
-                      <EllipsisHorizontalIcon
-                        className="h-5 w-5 text-gray-400 hover:text-gray-500 cursor-pointer"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setOpenMenuId(openMenuId === item.id ? null : item.id)
-                        }}
-                      />
-                      {openMenuId === item.id && (
-                        <div className="absolute right-0 mt-1 w-28 bg-white rounded-md shadow-lg py-1 z-10">
-                          <button
-                            className="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left flex items-center gap-2"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              onPinConversation?.(item.id)
-                            }}
-                          >
-                            <StarIcon className="w-4 h-4" />
-                            置顶对话
-                          </button>
-                          <button
-                            className={`w-full px-3 py-2 text-sm text-left flex items-center gap-2 ${item.name === 'New conversation'
-                              ? 'text-gray-300 cursor-not-allowed'
-                              : 'text-gray-700 hover:bg-gray-100 cursor-pointer'
-                              }`}
-                            disabled={item.name === 'New conversation'}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              if (item.name !== 'New conversation')
-                                handleRename(item)
-                            }}
-                          >
-                            <PencilIcon className="w-4 h-4" />
-                            重命名
-                          </button>
-                          <button
-                            className={`w-full px-3 py-2 text-sm text-left flex items-center gap-2 ${item.name === 'New conversation'
-                              ? 'text-gray-300 cursor-not-allowed'
-                              : 'text-red-600 hover:bg-gray-100 cursor-pointer'
-                              }`}
-                            disabled={item.name === 'New conversation'}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              if (item.name !== 'New conversation')
-                                handleDelete(item)
-                            }}
-                          >
-                            <TrashIcon className="w-4 h-4" />
-                            删除对话
-                          </button>
-                        </div>
-                      )}
+          <div className="mt-4">
+            <div className="kimi-plus-part">
+              <a onClick={() => router.push('/ai-plus')} className="nav-item kimi-plus-square flex items-center px-2 py-2 rounded-lg hover:bg-gray-200 cursor-pointer">
+                <svg xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" name="a_Kimi" className="nav-icon iconify mr-2 w-5 h-5" width="1em" height="1em" viewBox="0 0 1024 1024">
+                  <path d="M202.197333 444.928c-17.365333 17.365333-46.506667 14.933333-56.192-7.637333a221.738667 221.738667 0 0 1 360.362667-244.352l179.2 179.2A37.973333 37.973333 0 0 1 631.893333 425.813333l-179.2-179.2a145.664 145.664 0 0 0-241.365333 148.650667c5.632 17.194667 3.669333 36.864-9.088 49.621333z m140.714667 157.738667a37.973333 37.973333 0 0 0 0 53.76l174.677333 174.634666a221.653333 221.653333 0 0 0 363.52-236.672c-9.045333-23.552-39.04-26.538667-56.917333-8.704-12.373333 12.416-14.72 31.36-9.856 48.213334a145.664 145.664 0 0 1-242.986667 143.445333l-174.72-174.677333a37.973333 37.973333 0 0 0-53.717333 0zM448.725333 512a63.317333 63.317333 0 1 0 126.592 0 63.317333 63.317333 0 0 0-126.634666 0zM380.373333 330.112l-187.477333 187.477333a221.653333 221.653333 0 0 0 221.781333 368.64c25.429333-7.765333 29.610667-39.424 10.794667-58.197333-11.690667-11.733333-29.226667-14.634667-45.44-11.221333A145.664 145.664 0 0 1 246.613333 571.306667l187.477334-187.477334a37.973333 37.973333 0 1 0-53.76-53.717333z m263.168 363.776a37.973333 37.973333 0 1 1-53.76-53.76l187.52-187.477333a145.664 145.664 0 0 0-133.418666-245.461334c-16.213333 3.413333-33.749333 0.512-45.482667-11.221333-18.773333-18.773333-14.634667-50.432 10.794667-58.24a221.653333 221.653333 0 0 1 221.866666 368.64l-187.52 187.52z" fill="currentColor"></path>
+                </svg>
+                <span className="text-sm">AI+</span>
+              </a>
+
+              <div className="mt-0 space-y-0.5">
+                <a onClick={() => { window.open('/ppt-generator/index.html', '_blank') }} className="kimi-plus-item group flex items-center px-1.5 py-2 rounded-lg hover:bg-gray-200 cursor-pointer">
+                  <div className="kimi-plus-info flex items-center flex-1">
+                    <div className="kimi-plus-avatar w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center mr-1.5 overflow-hidden">
+                      <img src="/ppt.png" alt="PPT" className="w-5 h-5 rounded-full object-cover" />
                     </div>
+                    <span className="text-sm font-normoal">PPT 助手</span>
                   </div>
+                  <div className="more-btn hidden group-hover:block">
+                    <EllipsisHorizontalIcon className="h-5 w-5 text-gray-400 hover:text-gray-500 cursor-pointer" />
+                  </div>
+                </a>
+              </div>
+            </div>
+
+            <div className="history-part mt-4">
+              <div className="nav-title flex items-center px-2 mb-2">
+                <div className="title-label flex items-center text-gray-900">
+                  <ClockIcon className="w-5 h-5 mr-2" />
+                  <span className="text-sm">历史会话</span>
                 </div>
               </div>
-            )
-          })}
-        </nav>
-        {/* <a className="flex flex-shrink-0 p-4" href="https://langgenius.ai/" target="_blank">
-          <Card><div className="flex flex-row items-center"><ChatBubbleOvalLeftEllipsisSolidIcon className="text-primary-600 h-6 w-6 mr-2" /><span>LangGenius</span></div></Card>
-        </a> */}
-        <div className="flex flex-shrink-0 pr-4 pb-4 pl-4">
+              <nav className="mt-4 flex-1 space-y-1 pl-4">
+                <div className="max-h-[calc(100vh-20rem)] overflow-y-auto">
+                  {list.slice(0, showAllConversations ? undefined : 7).map((item) => {
+                    const isCurrent = item.id === currentId
+                    const ItemIcon
+                      = isCurrent ? ChatBubbleOvalLeftEllipsisSolidIcon : ChatBubbleOvalLeftEllipsisIcon
+                    return (
+                      <div
+                        onClick={() => handleConversationClick(item.id)}
+                        key={item.id}
+                        onMouseLeave={() => setOpenMenuId(null)}
+                        className={classNames(
+                          isCurrent
+                            ? '!bg-gray-200 text-gray-900'
+                            : 'text-gray-400 hover:bg-gray-200 hover:text-gray-600',
+                          'group flex items-center rounded-md px-2 py-2 ml-3 text-sm font-medium cursor-pointer',
+                        )}
+                      >
+                        <div className="flex-1 flex justify-between items-center min-w-0 gap-2">
+                          <span className="truncate max-w-[120px]">{item.name}</span>
+                          <div className="flex-shrink-0 group-hover:hidden">
+                            {item.created_at && (
+                              <span className="text-xs text-gray-400">
+                                {format(fromUnixTime(Number(item.created_at)), 'MM-dd')}
+                              </span>
+                            )}
+                          </div>
+                          <div className={`hidden ${item.name !== t('app.chat.newChat') ? 'group-hover:block' : ''} flex-shrink-0 relative`}>
+                            <div className="relative">
+                              <EllipsisHorizontalIcon
+                                className="h-5 w-5 text-gray-400 hover:text-gray-500 cursor-pointer menu-btn"
+                                onClick={(e) => handleMenuClick(e, item.id)}
+                              />
+                              {openMenuId === item.id && menuPosition && (
+                                <div
+                                  className="fixed w-28 bg-white rounded-md shadow-lg py-1 z-50 menu-container"
+                                  style={{
+                                    top: menuPosition.top,
+                                    right: menuPosition.right
+                                  }}
+                                  onClick={e => e.stopPropagation()}
+                                >
+                                  <button
+                                    className="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left flex items-center gap-2"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      onPinConversation?.(item.id);
+                                      setOpenMenuId(null);
+                                    }}
+                                  >
+                                    <StarIcon className="w-4 h-4" />
+                                    置顶对话
+                                  </button>
+                                  <button
+                                    className={`w-full px-3 py-2 text-sm text-left flex items-center gap-2 ${item.name === t('app.chat.newChat')
+                                      ? 'text-gray-300 cursor-not-allowed'
+                                      : 'text-gray-700 hover:bg-gray-100 cursor-pointer'
+                                      }`}
+                                    disabled={item.name === t('app.chat.newChat')}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      if (item.name !== t('app.chat.newChat')) {
+                                        handleRename(item);
+                                        setOpenMenuId(null);
+                                      }
+                                    }}
+                                  >
+                                    <PencilIcon className="w-4 h-4" />
+                                    重命名
+                                  </button>
+                                  <button
+                                    className={`w-full px-3 py-2 text-sm text-left flex items-center gap-2 ${item.name === t('app.chat.newChat')
+                                      ? 'text-gray-300 cursor-not-allowed'
+                                      : 'text-red-600 hover:bg-gray-100 cursor-pointer'
+                                      }`}
+                                    disabled={item.name === t('app.chat.newChat')}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      if (item.name !== t('app.chat.newChat')) {
+                                        handleDelete(item);
+                                        setOpenMenuId(null);
+                                      }
+                                    }}
+                                  >
+                                    <TrashIcon className="w-4 h-4" />
+                                    删除对话
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+                {list.length >= 6 && (
+                  <div
+                    className="flex items-center justify-center py-2 text-sm text-gray-500 hover:text-gray-700 cursor-pointer"
+                    onClick={() => setShowAllConversations(!showAllConversations)}
+                  >
+                    {showAllConversations ? "收起" : `查看全部 (${list.length})`}
+                  </div>
+                )}
+              </nav>
+            </div>
+          </div>
+        </div>
+        <div className="absolute bottom-0 left-0 right-0 flex flex-shrink-0 pr-4 pb-4 pl-4">
           <div className="text-gray-400 font-normal text-xs">© {copyRight} {(new Date()).getFullYear()}</div>
         </div>
       </div>

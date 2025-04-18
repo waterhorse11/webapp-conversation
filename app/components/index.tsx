@@ -10,7 +10,7 @@ import Toast from '@/app/components/base/toast'
 import Sidebar from '@/app/components/sidebar'
 import ConfigSence from '@/app/components/config-scence'
 import Header from '@/app/components/header'
-import { fetchAppParams, fetchChatList, fetchConversations, generationConversationName, sendChatMessage, updateFeedback, deleteConversation } from '@/service'
+import { fetchAppParams, fetchChatList, fetchConversations, generationConversationName, sendChatMessage, updateFeedback, deleteConversation, stopChatMessageResponding } from '@/service'
 import type { ChatItem, ConversationItem, Feedbacktype, PromptConfig, VisionFile, VisionSettings } from '@/types/app'
 import { Resolution, TransferMethod, WorkflowRunningStatus } from '@/types/app'
 import Chat from '@/app/components/chat'
@@ -22,13 +22,29 @@ import AppUnavailable from '@/app/components/app-unavailable'
 import { API_KEY, APP_ID, APP_INFO, isShowPrompt, promptTemplate } from '@/config'
 import type { Annotation as AnnotationType } from '@/types/log'
 import { addFileInfos, sortAgentSorts } from '@/utils/tools'
-import ModelSelecter from '@/app/components/base/model-selecter'
+import Tooltip from '@/app/components/base/tooltip'
 
 export type IMainProps = {
-  params: any
+  params?: any
+  component?: FC
 }
 
-const Main: FC<IMainProps> = () => {
+// 添加一个常量用于存储删除的会话 ID
+const DELETED_CONVERSATIONS_KEY = 'deleted_conversations'
+
+// 获取已删除的会话 ID 列表
+const getDeletedConversations = (): string[] => {
+  try {
+    return JSON.parse(localStorage.getItem(DELETED_CONVERSATIONS_KEY) || '[]')
+  } catch {
+    return []
+  }
+}
+
+const Main: FC<IMainProps> = ({
+  params,
+  component: Component,
+}) => {
   const { t } = useTranslation()
   const media = useBreakpoints()
   const isMobile = media === MediaType.mobile
@@ -42,7 +58,7 @@ const Main: FC<IMainProps> = () => {
   const [promptConfig, setPromptConfig] = useState<PromptConfig | null>(null)
   const [inited, setInited] = useState<boolean>(false)
   // in mobile, show sidebar by click button
-  const [isShowSidebar, { setTrue: showSidebar, setFalse: hideSidebar }] = useBoolean(false)
+  const [isShowSidebar, { setTrue: showSidebar, setFalse: hideSidebar }] = useBoolean(true)
   const [visionConfig, setVisionConfig] = useState<VisionSettings | undefined>({
     enabled: false,
     number_limits: 2,
@@ -52,7 +68,7 @@ const Main: FC<IMainProps> = () => {
 
   useEffect(() => {
     if (APP_INFO?.title)
-      document.title = `${APP_INFO.title} - Powered by IT`
+      document.title = `${APP_INFO.title}`
   }, [APP_INFO?.title])
 
   // onData change thought (the produce obj). https://github.com/immerjs/immer/issues/576
@@ -172,13 +188,17 @@ const Main: FC<IMainProps> = () => {
     if (id === '-1') {
       createNewChat()
       setConversationIdChangeBecauseOfNew(true)
+      setChatStarted()
     }
     else {
       setConversationIdChangeBecauseOfNew(false)
     }
     // trigger handleConversationSwitch
     setCurrConversationId(id, APP_ID)
-    hideSidebar()
+    // 只在移动端时隐藏侧边栏
+    if (isMobile) {
+      hideSidebar()
+    }
   }
 
   /*
@@ -238,15 +258,16 @@ const Main: FC<IMainProps> = () => {
       try {
         const [conversationData, appParams] = await Promise.all([fetchConversations(), fetchAppParams()])
 
-        // handle current conversation id
+        // 获取已删除的会话 ID
+        const deletedIds = getDeletedConversations()
+
+        // 过滤掉已删除的会话
         const { data: conversations, error } = conversationData as { data: ConversationItem[]; error: string }
-        if (error) {
-          Toast.notify({ type: 'error', message: error })
-          throw new Error(error)
-          return
-        }
+        const filteredConversations = conversations.filter(conv => !deletedIds.includes(conv.id))
+
+        // handle current conversation id
         const _conversationId = getConversationIdFromStorage(APP_ID)
-        const isNotNewConversation = conversations.some(item => item.id === _conversationId)
+        const isNotNewConversation = filteredConversations.some(item => item.id === _conversationId)
 
         // fetch new conversation info
         const { user_input_form, opening_statement: introduction, file_upload, system_parameters }: any = appParams
@@ -268,7 +289,7 @@ const Main: FC<IMainProps> = () => {
           transfer_methods: [TransferMethod.local_file],
           image_file_size_limit: system_parameters?.system_parameters || 0,
         })
-        setConversationList(conversations as ConversationItem[])
+        setConversationList(filteredConversations)
 
         if (isNotNewConversation)
           setCurrConversationId(_conversationId, APP_ID, false)
@@ -319,6 +340,31 @@ const Main: FC<IMainProps> = () => {
   const [isRespondingConIsCurrCon, setIsRespondingConCurrCon, getIsRespondingConIsCurrCon] = useGetState(true)
   const [userQuery, setUserQuery] = useState('')
 
+  // 添加停止响应的处理函数
+  const handleStopResponding = async () => {
+    if (!messageTaskId) return
+
+    try {
+      await stopChatMessageResponding(messageTaskId)
+      setHasStopResponded(true)
+      // 中断当前的响应
+      if (abortController) {
+        abortController.abort()
+        setAbortController(null)
+      }
+      setRespondingFalse()
+
+      // 更新聊天列表，移除占位回答
+      setChatList(produce(getChatList(), (draft) => {
+        const placeholderIndex = draft.findIndex(item => item.id.includes('answer-placeholder'))
+        if (placeholderIndex !== -1)
+          draft.splice(placeholderIndex, 1)
+      }))
+    } catch (err) {
+      notify({ type: 'error', message: 'failed to stop responding' })
+    }
+  }
+
   const updateCurrentQA = ({
     responseItem,
     questionId,
@@ -365,9 +411,9 @@ const Main: FC<IMainProps> = () => {
           if (isNewConversation && newConversationId) {
             setCurrConversationId(newConversationId, APP_ID, true)
             setConversationIdChangeBecauseOfNew(true)
-            fetchConversations().then(({ data: allConversations }: any) => {
-              setConversationList(allConversations)
-            })
+            // fetchConversations().then(({ data: allConversations }: any) => {
+            //   setConversationList(allConversations)
+            // })
           }
         },
         onCompleted: () => {
@@ -665,6 +711,8 @@ const Main: FC<IMainProps> = () => {
         onPinConversation={handlePinConversation}
         onRenameConversation={handleRenameConversation}
         onDeleteConversation={handleDeleteConversation}
+        onHandleConversationIdChange={handleConversationIdChange}
+        onHideSideBar={hideSidebar}
       />
     )
   }
@@ -725,7 +773,14 @@ const Main: FC<IMainProps> = () => {
 
         // 更新本地状态
         const { data: allConversations }: any = await fetchConversations()
-        setConversationList(allConversations)
+
+        // 获取已删除的会话 ID
+        const deletedIds = getDeletedConversations()
+
+        // 过滤掉已删除的会话
+        const filteredConversations = allConversations.filter((conv: any) => !deletedIds.includes(conv.id))
+
+        setConversationList(filteredConversations)
       }
     } catch (err) {
       console.error('Failed to update conversation name:', err)
@@ -762,9 +817,6 @@ const Main: FC<IMainProps> = () => {
 
   const handleDeleteConversation = async (id: string) => {
     try {
-      // 先删除会话
-      await deleteConversation(id)
-
       // 如果删除的是当前会话，先重置状态
       if (id === currConversationId) {
         handleConversationIdChange('-1')
@@ -772,13 +824,18 @@ const Main: FC<IMainProps> = () => {
         resetNewConversationInputs()
       }
 
-      // 最后再获取最新的会话列表
-      const { data: allConversations }: any = await fetchConversations()
-      setConversationList(allConversations)
+      // 更新前端的会话列表
+      const newConversationList = conversationList.filter(item => item.id !== id)
+      setConversationList(newConversationList)
+
+      // 保存删除的会话 ID 到 localStorage
+      const deletedIds = getDeletedConversations()
+      deletedIds.push(id)
+      localStorage.setItem(DELETED_CONVERSATIONS_KEY, JSON.stringify(deletedIds))
 
       // 如果还有其他会话，切换到第一个会话
-      if (allConversations.length > 0 && id === currConversationId)
-        handleConversationIdChange(allConversations[0].id)
+      if (newConversationList.length > 0 && id === currConversationId)
+        handleConversationIdChange(newConversationList[0].id)
 
       notify({ type: 'success', message: '删除成功' })
     } catch (err) {
@@ -793,64 +850,66 @@ const Main: FC<IMainProps> = () => {
     return <Loading type='app' />
 
   return (
-    <div className='bg-gray-100'>
-      <Header
-        title={APP_INFO.title}
-        isMobile={isMobile}
-        onShowSideBar={showSidebar}
-        onCreateNewChat={() => handleConversationIdChange('-1')}
-      />
-      <div className="flex rounded-t-2xl bg-white overflow-hidden">
+    <div className='fixed inset-0 bg-gray-100'>
+      <div className="absolute inset-0 flex">
         {/* sidebar */}
-        {!isMobile && renderSidebar()}
-        {isMobile && isShowSidebar && (
-          <div className='fixed inset-0 z-50'
-            style={{ backgroundColor: 'rgba(35, 56, 118, 0.2)' }}
-            onClick={hideSidebar}
-          >
-            <div className='inline-block' onClick={e => e.stopPropagation()}>
-              {renderSidebar()}
-            </div>
+        {!isMobile && (
+          <div className={`fixed top-0 bottom-0 left-0 z-50 transition-transform duration-300 ${isShowSidebar ? 'translate-x-0' : '-translate-x-full'}`}>
+            {renderSidebar()}
           </div>
         )}
         {/* main */}
-        <div className='flex-grow flex flex-col h-[calc(100vh_-_3rem)] overflow-y-auto'>
-          {!hasSetInputs && (
-            <ConfigSence
-              conversationName={conversationName}
-              hasSetInputs={hasSetInputs}
-              isPublicVersion={isShowPrompt}
-              siteInfo={APP_INFO}
-              promptConfig={promptConfig}
-              onStartChat={handleStartChat}
-              canEditInputs={canEditInputs}
-              savedInputs={currInputs as Record<string, any>}
-              onInputsChange={setCurrInputs}
-            ></ConfigSence>
-          )}
-          {hasSetInputs && (
-            <ModelSelecter
-              onSend={handleSend}
-              initialModel={lastSelectedModel}
-            ></ModelSelecter>
-          )}
-          {
-            hasSetInputs && (
-              <div className='relative grow h-[200px] pc:w-[994px] max-w-full mobile:w-full pb-[66px] mx-auto mb-3.5 overflow-hidden'>
-                <div className='h-full overflow-y-auto' ref={chatListDomRef}>
-                  <Chat
-                    chatList={chatList}
-                    onSend={handleSend}
-                    onFeedback={handleFeedback}
-                    isResponding={isResponding}
-                    checkCanSend={checkCanSend}
-                    visionConfig={visionConfig}
-                    currConversationId={currConversationId}
-                    isOnlineSearch={isOnlineSearch}
-                  />
-                </div>
-              </div>
+        <div className={`relative flex-1 flex flex-col min-w-0 pt-[7px] transition-all duration-300 ${!isMobile && isShowSidebar ? 'ml-[240px]' : 'ml-0'}`}>
+          <div className={`relative flex-1 flex flex-col min-w-0 bg-white mb-[7px] mr-[7px] rounded-lg ${isShowSidebar ? '' : 'ml-[7px]'}`}>
+            {/* {!hasSetInputs && (
+              <ConfigSence
+                conversationName={conversationName}
+                hasSetInputs={hasSetInputs}
+                isPublicVersion={isShowPrompt}
+                siteInfo={APP_INFO}
+                promptConfig={promptConfig}
+                onStartChat={handleStartChat}
+                canEditInputs={canEditInputs}
+                savedInputs={currInputs as Record<string, any>}
+                onInputsChange={setCurrInputs}
+              ></ConfigSence>
+            )} */}
+            {!isShowSidebar && !isMobile && (
+              <Tooltip selector='sidebar-open'
+                position='right'
+                htmlContent={
+                  <div>
+                    <div>{t('common.operation.openSidebar')}</div>
+                  </div>
+                }
+              >
+                <button className="absolute left-2 top-2 p-1 w-8 h-8 hover:bg-gray-200 rounded-lg flex items-center justify-center z-50"
+                  onClick={showSidebar}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" width="20" height="20" viewBox="0 0 1024 1024" className="iconify text-gray-500"><path d="M861.866667 162.133333c-17.066667-17.066667-42.666667-29.866667-68.266667-29.866666H226.133333c-25.6 0-51.2 8.533333-68.266666 29.866666S128 204.8 128 230.4v567.466667c0 25.6 8.533333 51.2 29.866667 68.266666 17.066667 17.066667 42.666667 29.866667 68.266666 29.866667h567.466667c25.6 0 51.2-8.533333 68.266667-29.866667 17.066667-17.066667 29.866667-42.666667 29.866666-68.266666V226.133333c0-25.6-8.533333-46.933333-29.866666-64zM366.933333 814.933333H226.133333c-4.266667 0-8.533333 0-12.8-4.266666-4.266667-4.266667-4.266667-8.533333-4.266666-12.8V226.133333c0-4.266667 0-8.533333 4.266666-12.8 4.266667-4.266667 8.533333-4.266667 12.8-4.266666h140.8v605.866666z m448-17.066666c0 4.266667 0 8.533333-4.266666 12.8-4.266667 4.266667-8.533333 4.266667-12.8 4.266666h-354.133334V209.066667h354.133334c4.266667 0 8.533333 0 12.8 4.266666 4.266667 4.266667 4.266667 8.533333 4.266666 12.8v571.733334z" fill="currentColor" /></svg>
+                </button>
+              </Tooltip>
             )}
+            {
+              hasSetInputs && (
+                <div className='relative grow h-[200px] w-full max-w-full mx-auto overflow-hidden'>
+                  {Component ? <Component /> : (
+                    <Chat
+                      chatList={chatList}
+                      onSend={handleSend}
+                      onFeedback={handleFeedback}
+                      isResponding={isResponding}
+                      checkCanSend={checkCanSend}
+                      visionConfig={visionConfig}
+                      currConversationId={currConversationId}
+                      isOnlineSearch={isOnlineSearch}
+                      lastSelectedModel={lastSelectedModel}
+                      onStopResponding={handleStopResponding}
+                    />
+                  )}
+                </div>
+              )}
+          </div>
         </div>
       </div>
     </div>
