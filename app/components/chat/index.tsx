@@ -39,6 +39,7 @@ export type IChatProps = {
   isOnlineSearch?: boolean
   lastSelectedModel?: string
   onStopResponding?: () => void
+  isNewChat?: boolean
 }
 
 const Chat: FC<IChatProps> = ({
@@ -56,6 +57,7 @@ const Chat: FC<IChatProps> = ({
   isOnlineSearch,
   lastSelectedModel,
   onStopResponding,
+  isNewChat,
 }) => {
   const { t } = useTranslation()
   const { notify } = Toast
@@ -226,7 +228,7 @@ const Chat: FC<IChatProps> = ({
             {
               !isHideSendInput && (
                 <div className={cn(!feedbackDisabled &&
-                  chatList.length > 0
+                  (!isNewChat || chatList.length > 0)
                   ? 'sticky bottom-0 z-10 pb-6'
                   : 'absolute top-1/4 translate-y-1/4 bottom-0 left-0 right-0 max-w-[994px] mx-auto'
                 )}>

@@ -19,16 +19,16 @@ const nextConfig = {
   env: {
     VITE_DOCMEE_API_KEY: process.env.VITE_DOCMEE_API_KEY
   },
-  async rewrites() {
-    return [
-      {
-        // 使用正则表达式匹配所有 /pages 下的路由
-        source: '/:path*',
-        // 将匹配到的路径重定向到 /pages 目录下
-        destination: '/pages/:path*',
-      }
-    ]
-  },
+  // async rewrites() {
+  //   return [
+  //     {
+  //       // 使用正则表达式匹配所有 /pages 下的路由
+  //       source: '/:path*',
+  //       // 将匹配到的路径重定向到 /pages 目录下
+  //       destination: '/pages/:path*',
+  //     },
+  //   ]
+  // },
 }
 
 module.exports = nextConfig

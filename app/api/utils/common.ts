@@ -2,9 +2,9 @@ import { type NextRequest } from 'next/server'
 // import { ChatClient } from 'dify-client'
 import { ChatClient } from '@/app/utils/dify-client';
 import { v4 } from 'uuid'
-import { API_KEY, API_URL, APP_ID } from '@/config'
+import { API_KEY, API_URL, APP_ID, AI_PLUS_CONFIGS } from '@/config'
 
-const userPrefix = `user_${APP_ID}:`
+const userPrefix = `user_:`
 
 export const getInfo = (request: NextRequest) => {
   // 获取用户 IP 并处理 IPv4-mapped IPv6 地址
@@ -24,7 +24,7 @@ export const getInfo = (request: NextRequest) => {
   // 将 IP 和 sessionId 组合
   const combinedId = `${sessionId}-${ip}`
   const user = userPrefix + combinedId
-
+  console.log(user)
   return {
     sessionId,
     user,
@@ -37,5 +37,11 @@ export const setSession = (sessionId: string) => {
     'Set-Cookie': `session_id=${sessionId}; Path=/; HttpOnly; SameSite=Strict`
   }
 }
+export type AppId = string
 
-export const client = new ChatClient(API_KEY, API_URL || undefined)
+// 动态生成客户端实例
+export const clients: Record<AppId, ChatClient> = Object.entries(AI_PLUS_CONFIGS).reduce((acc, [appId, config]) => ({
+  ...acc,
+  [appId]: new ChatClient(config.apiKey, API_URL || undefined)
+}), {})
+
