@@ -24,7 +24,7 @@ export const getInfo = (request: NextRequest) => {
   // 将 IP 和 sessionId 组合
   const combinedId = `${sessionId}-${ip}`
   const user = userPrefix + combinedId
-  console.log(user)
+  // console.log(user)
   return {
     sessionId,
     user,

@@ -2,10 +2,10 @@ version: '3'
 services:
   web:
     build: .
-    container_name: ai-hub
+    container_name: ai-hub-v1.1
     restart: always
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - VITE_DOCMEE_API_KEY=ak_rJDEMCpsEp6TEXI4b0
+      - VITE_DOCMEE_API_KEY=ak_RKnveK5T6335pibWpa

@@ -2,6 +2,7 @@ import { API_PREFIX } from '@/config'
 import Toast from '@/app/components/base/toast'
 import type { AnnotationReply, MessageEnd, MessageReplace, ThoughtItem } from '@/app/components/chat/type'
 import type { VisionFile } from '@/types/app'
+import axios, { AxiosInstance, AxiosRequestConfig } from 'axios'
 
 const TIME_OUT = 100000
 
@@ -16,10 +17,18 @@ const baseOptions = {
   method: 'GET',
   mode: 'cors',
   credentials: 'include', // always send cookies、HTTP Basic authentication.
-  headers: new Headers({
+  headers: {
     'Content-Type': ContentType.json,
-  }),
+  },
   redirect: 'follow',
+}
+
+// 获取 appId
+const getAppId = () => {
+  if (typeof window !== 'undefined') {
+    return window.localStorage.getItem('x-app-id') || '';
+  }
+  return '';
 }
 
 export type WorkflowStartedResponse = {
@@ -249,7 +258,19 @@ const handleStream = (
 }
 
 const baseFetch = (url: string, fetchOptions: any, { needAllResponseContent }: IOtherOptions) => {
-  const options = Object.assign({}, baseOptions, fetchOptions)
+  const options = {
+    ...baseOptions,
+    ...fetchOptions,
+  }
+
+  // 添加 x-app-id 请求头
+  const appId = getAppId();
+  if (appId) {
+    options.headers = {
+      ...options.headers,
+      'x-app-id': appId
+    };
+  }
 
   const urlPrefix = API_PREFIX
 
@@ -288,25 +309,22 @@ const baseFetch = (url: string, fetchOptions: any, { needAllResponseContent }: I
           // Error handler
           if (!/^(2|3)\d{2}$/.test(res.status)) {
             try {
-              const bodyJson = res.json()
-              switch (res.status) {
-                case 401: {
-                  Toast.notify({ type: 'error', message: 'Invalid token' })
-                  return
+              res.json().then((data: any) => {
+                switch (res.status) {
+                  case 401: {
+                    Toast.notify({ type: 'error', message: 'Invalid token' })
+                    break
+                  }
+                  default:
+                    Toast.notify({ type: 'error', message: data.message || 'Server Error' })
                 }
-                default:
-                  // eslint-disable-next-line no-new
-                  new Promise(() => {
-                    bodyJson.then((data: any) => {
-                      Toast.notify({ type: 'error', message: data.message })
-                    })
-                  })
-              }
+              }).catch(() => {
+                Toast.notify({ type: 'error', message: 'Server Error' })
+              })
             }
             catch (e) {
               Toast.notify({ type: 'error', message: `${e}` })
             }
-
             return Promise.reject(resClone)
           }
 
@@ -317,9 +335,21 @@ const baseFetch = (url: string, fetchOptions: any, { needAllResponseContent }: I
           }
 
           // return data
-          const data = options.headers.get('Content-type') === ContentType.download ? res.blob() : res.json()
+          const contentType = res.headers.get('content-type') || ''
+          let responsePromise
+          if (contentType.includes('application/json')) {
+            responsePromise = res.json()
+          } else if (contentType.includes('application/octet-stream')) {
+            responsePromise = res.blob()
+          } else {
+            responsePromise = res.text()
+          }
 
-          resolve(needAllResponseContent ? resClone : data)
+          responsePromise.then((data: any) => {
+            resolve(needAllResponseContent ? { ...resClone, data } : data)
+          }).catch((error: any) => {
+            reject(error)
+          })
         })
         .catch((err) => {
           Toast.notify({ type: 'error', message: err })
@@ -378,9 +408,26 @@ export const ssePost = (
     onError,
   }: IOtherOptions,
 ) => {
-  const options = Object.assign({}, baseOptions, {
+
+  const controller = new AbortController()
+  const { signal } = controller
+
+  const options = {
+    ...baseOptions,
+    ...fetchOptions,
+    headers: {
+      'Content-Type': ContentType.stream,
+      accept: ContentType.stream,
+    },
+    signal,
     method: 'POST',
-  }, fetchOptions)
+  }
+
+  // 添加 x-app-id 请求头
+  const appId = getAppId();
+  if (appId) {
+    options.headers['x-app-id'] = appId;
+  }
 
   const urlPrefix = API_PREFIX
   const urlWithPrefix = `${urlPrefix}${url.startsWith('/') ? url : `/${url}`}`
@@ -395,6 +442,7 @@ export const ssePost = (
         // eslint-disable-next-line no-new
         new Promise(() => {
           res.json().then((data: any) => {
+            console.error('Error response:', data)
             Toast.notify({ type: 'error', message: data.message || 'Server Error' })
           })
         })
@@ -411,6 +459,7 @@ export const ssePost = (
         onCompleted?.()
       }, onThought, onMessageEnd, onMessageReplace, onFile, onWorkflowStarted, onWorkflowFinished, onNodeStarted, onNodeFinished)
     }).catch((e) => {
+      console.error('Request failed:', e)
       Toast.notify({ type: 'error', message: e })
       onError?.(e)
     })
@@ -434,4 +483,23 @@ export const put = (url: string, options = {}, otherOptions?: IOtherOptions) => 
 
 export const del = (url: string, options = {}, otherOptions?: IOtherOptions) => {
   return request(url, Object.assign({}, options, { method: 'DELETE' }), otherOptions)
+}
+
+export class BaseService {
+  protected client: AxiosInstance;
+
+  constructor() {
+    this.client = axios.create({
+      baseURL: '/api',
+    });
+
+    // 添加请求拦截器
+    this.client.interceptors.request.use((config) => {
+      const appId = getAppId();
+      if (appId) {
+        config.headers['x-app-id'] = appId;
+      }
+      return config;
+    });
+  }
 }

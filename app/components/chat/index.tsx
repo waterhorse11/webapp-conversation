@@ -17,6 +17,7 @@ import ImageList from '@/app/components/base/image-uploader/image-list'
 import { useImageFiles } from '@/app/components/base/image-uploader/hooks'
 import OnlineSearch from '@/app/components/base/online-search'
 import ModelSelecter from '@/app/components/base/model-selecter'
+import { usePathname } from 'next/navigation'
 
 export type IChatProps = {
   chatList: ChatItem[]
@@ -67,6 +68,7 @@ const Chat: FC<IChatProps> = ({
   const [isAtBottom, setIsAtBottom] = React.useState(true)
   const [forceShowButton, setForceShowButton] = React.useState(false)
   const [showStopBtn, setShowStopBtn] = React.useState(false)
+  const pathname = usePathname()
 
   const [query, setQuery] = React.useState('')
   const handleContentChange = (e: any) => {
@@ -195,151 +197,166 @@ const Chat: FC<IChatProps> = ({
   }, [chatList, isResponding])
 
   return (
-    <div className={cn(!feedbackDisabled && 'mt-5 mb-2', 'chat-outer-scroll h-full flex flex-col items-center w-full overflow-y-auto overscroll-y-contain')}>
-      {/* Chat List */}
-      <div className="flex-1 w-full">
+    <div className="h-full flex flex-col mt-5">
+      {/* 聊天列表区域 */}
+      <div className="flex-1 overflow-y-auto chat-outer-scroll">
         <div className="w-full h-full px-4 md:px-12 lg:px-24">
-          <div className="h-full flex flex-col max-w-[994px] mx-auto">
-            <div className="flex-1">
-              <div className="space-y-[30px] pb-4">
-                {chatList.map((item) => {
-                  if (item.isAnswer) {
-                    const isLast = item.id === chatList[chatList.length - 1].id
-                    return <Answer
-                      key={item.id}
-                      item={item}
-                      feedbackDisabled={feedbackDisabled}
-                      onFeedback={onFeedback}
-                      isResponding={isResponding && isLast}
-                    />
-                  }
-                  return (
-                    <Question
-                      key={item.id}
-                      id={item.id}
-                      content={item.content}
-                      useCurrentUserAvatar={useCurrentUserAvatar}
-                      imgSrcs={(item.message_files && item.message_files?.length > 0) ? item.message_files.map(item => item.url) : []}
-                    />
-                  )
-                })}
-              </div>
-            </div>
-            {
-              !isHideSendInput && (
-                <div className={cn(!feedbackDisabled &&
-                  (!isNewChat || chatList.length > 0)
-                  ? 'sticky bottom-0 z-10 pb-6'
-                  : 'absolute top-1/4 translate-y-1/4 bottom-0 left-0 right-0 max-w-[994px] mx-auto'
-                )}>
-                  {/* 滚动到底部按钮 */}
-                  {!isAtBottom && chatList.length > 0 && (
-                    <div
-                      className="absolute -top-11 left-1/2 transform -translate-x-1/2 z-20 cursor-pointer bg-white border border-gray-200 rounded-full shadow-md p-2 hover:bg-gray-50 flex items-center gap-1"
-                      onClick={scrollToBottom}
-                    >
-                      <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                      </svg>
+          <div className="max-w-[994px] mx-auto">
+            <div className="space-y-[30px] pb-4">
+              {chatList.map((item) => (
+                <div key={item.id} className="chat-content-item">
+                  {item.isAnswer ? (
+                    <div className="segment segment-assistant">
+                      <div className="segment-container">
+                        <div className="segment-content">
+                          <div className="segment-content-box">
+                            <Answer
+                              item={item}
+                              feedbackDisabled={feedbackDisabled}
+                              onFeedback={onFeedback}
+                              isResponding={isResponding && item.id === chatList[chatList.length - 1].id}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="segment segment-user">
+                      <div className="segment-container">
+                        <div className="segment-content">
+                          <div className="segment-content-box">
+                            <Question
+                              id={item.id}
+                              content={item.content}
+                              useCurrentUserAvatar={useCurrentUserAvatar}
+                              imgSrcs={(item.message_files && item.message_files?.length > 0) ? item.message_files.map(item => item.url) : []}
+                            />
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   )}
-                  <div className='flex flex-col bg-white border-[1.5px] border-gray-200 rounded-xl shadow-lg'>
-                    {/* 上部分：文字输入区域 */}
-                    <div className='relative px-[5.5px] py-[1px]'>
-                      <Textarea
-                        ref={inputRef}
-                        className={`
-                          block w-full px-2 py-[7px] leading-5 min-h-[60px] max-h-[145px] text-sm text-gray-700 outline-none appearance-none resize-none placeholder:text-gray-400 overscroll-y-contain
-                        `}
-                        value={query}
-                        onChange={handleContentChange}
-                        onKeyUp={handleKeyUp}
-                        onKeyDown={handleKeyDown}
-                        onScroll={(e) => {
-                          e.stopPropagation(); // 阻止滚动事件冒泡
-                          e.nativeEvent.stopImmediatePropagation(); // 彻底阻止事件传播
-                        }}
-                        placeholder={t('common.operation.pleaseEnter') as string}
-                        autoSize
-                      />
-                    </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
 
-                    {/* 下部分：功能按钮区域 */}
-                    <div className='flex items-center justify-between px-2 py-2 min-h-[40px]'>
-                      <div className='flex items-center'>
-                        {visionConfig?.enabled && (
-                          <>
-                            {/* <div className='absolute bottom-2 left-2 flex items-center'> */}
-                            {/* <ChatImageUploader
+      {/* 输入区域 */}
+      {!isHideSendInput && (
+        <div className={`flex-shrink-0 w-full px-4 md:px-12 lg:px-24 
+          ${(!isNewChat || chatList.length > 0 || pathname?.startsWith('/ai-plus/'))
+            ? 'sticky bottom-0 z-10 pt-6 pb-2'
+            : 'absolute top-1/4 bottom-0 left-0 right-0'}`}>
+          <div className="max-w-[994px] mx-auto">
+            {(!isNewChat || chatList.length > 0 || pathname?.startsWith('/ai-plus/')) ? null : (
+              <div className="flex justify-center">
+                <img src="/AiHub.png" alt="AiHub" className="w-[300px]" />
+              </div>
+            )}
+
+            {/* 滚动到底部按钮 */}
+            {!isAtBottom && chatList.length > 0 && (
+              <div
+                className="absolute -top-9 left-1/2 transform -translate-x-1/2 z-20 cursor-pointer bg-white border border-gray-200 rounded-full shadow-md p-2 hover:bg-gray-50 flex items-center gap-1"
+                onClick={scrollToBottom}
+              >
+                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                </svg>
+              </div>
+            )}
+
+            <div className="bg-white border-[1.5px] border-gray-200 rounded-xl shadow-lg">
+              <div className="relative">
+                <div className="px-[5.5px] py-[1px]">
+                  <Textarea
+                    ref={inputRef}
+                    className="block w-full px-2 py-[7px] leading-5 min-h-[60px] max-h-[145px] text-sm text-gray-700 outline-none appearance-none resize-none placeholder:text-gray-400"
+                    value={query}
+                    onChange={handleContentChange}
+                    onKeyUp={handleKeyUp}
+                    onKeyDown={handleKeyDown}
+                    placeholder={t('common.operation.pleaseEnter') as string}
+                    autoSize
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between px-2 py-2 min-h-[40px]">
+                <div className="flex items-center gap-2">
+                  <div className='flex items-center'>
+                    {visionConfig?.enabled && (
+                      <>
+                        {/* <div className='absolute bottom-2 left-2 flex items-center'> */}
+                        {/* <ChatImageUploader
                               settings={visionConfig}
                               onUpload={onUpload}
                               disabled={files.length >= visionConfig.number_limits}
                             /> */}
-                            {/* <div className='mx-1 w-[1px] h-4 bg-black/5' /> */}
-                            {/* <div className='absolute bottom-[6.5px] left-2 flex items-center'> */}
-                            <OnlineSearch
-                              onSend={onSend}
-                              isActive={isOnlineSearch}
-                            />
-                            <div className='mx-1 w-[1px] h-4 bg-black/5' />
-                            <ModelSelecter
-                              onSend={onSend}
-                              initialModel={lastSelectedModel}
-                            />
-                            {/* <div className='mx-1 w-[1px] h-4 bg-black/5' /> */}
-                            <ImageList
-                              list={files}
-                              onRemove={onRemove}
-                              onReUpload={onReUpload}
-                              onImageLinkLoadSuccess={onImageLinkLoadSuccess}
-                              onImageLinkLoadError={onImageLinkLoadError}
-                            />
-                          </>
-                        )}
-                      </div>
-                      <div className="flex items-center h-8">
-                        {/* <div className={`${s.count} mr-4 h-5 leading-5 text-sm bg-gray-50 text-gray-500`}>{query.trim().length}</div> */}
-                        {/* {visionConfig?.enabled && (
-                          <ChatImageUploader
-                            settings={visionConfig}
-                            onUpload={onUpload}
-                            disabled={files.length >= visionConfig.number_limits}
-                          />
-                        )} */}
                         {/* <div className='mx-1 w-[1px] h-4 bg-black/5' /> */}
-                        <Tooltip
-                          selector='send-tip'
-                          htmlContent={
-                            <div>
-                              {query.trim().length > 0 ? (!isResponding ? (
-                                <>
-                                  <div>{t('common.operation.send')} Enter</div>
-                                  <div>{t('common.operation.lineBreak')} Shift Enter</div>
-                                </>
-                              ) : (
-                                <div>{t('common.operation.stop')}</div>
-                              )) : (!isResponding ? (
-                                <div>{t('common.operation.pleaseEnter')}</div>
-                              ) : (
-                                <div>{t('common.operation.stop')}</div>
-                              ))}
-                            </div>
-                          }
-                        >
-                          <div
-                            className={`${s.sendBtn} w-8 h-8 cursor-pointer rounded-full border border-gray-200 ${showStopBtn ? s.stopBtn : query.trim().length > 0 ? s.active : ''}`}
-                            onClick={showStopBtn ? onStopResponding : handleSend}
-                          ></div>
-                        </Tooltip>
-                      </div>
-                    </div>
+                        {/* <div className='absolute bottom-[6.5px] left-2 flex items-center'> */}
+                        <OnlineSearch
+                          onSend={onSend}
+                          isActive={isOnlineSearch}
+                        />
+                        <div className='mx-1 w-[1px] h-4 bg-black/5' />
+                        <ModelSelecter
+                          onSend={onSend}
+                          initialModel={lastSelectedModel}
+                        />
+                        {/* <div className='mx-1 w-[1px] h-4 bg-black/5' /> */}
+                        <ImageList
+                          list={files}
+                          onRemove={onRemove}
+                          onReUpload={onReUpload}
+                          onImageLinkLoadSuccess={onImageLinkLoadSuccess}
+                          onImageLinkLoadError={onImageLinkLoadError}
+                        />
+                      </>
+                    )}
                   </div>
                 </div>
-              )
-            }
+                <div className="flex items-center h-8">
+                  {/* <div className={`${s.count} mr-4 h-5 leading-5 text-sm bg-gray-50 text-gray-500`}>{query.trim().length}</div> */}
+                  {/* {visionConfig?.enabled && (
+                    <ChatImageUploader
+                      settings={visionConfig}
+                      onUpload={onUpload}
+                      disabled={files.length >= visionConfig.number_limits}
+                    />
+                  )} */}
+                  <Tooltip
+                    selector="send-tip"
+                    htmlContent={
+                      <div>
+                        {query.trim().length > 0 ? (!isResponding ? (
+                          <>
+                            <div>{t('common.operation.send')} Enter</div>
+                            <div>{t('common.operation.lineBreak')} Shift Enter</div>
+                          </>
+                        ) : (
+                          <div>{t('common.operation.stop')}</div>
+                        )) : (!isResponding ? (
+                          <div>{t('common.operation.pleaseEnter')}</div>
+                        ) : (
+                          <div>{t('common.operation.stop')}</div>
+                        ))}
+                      </div>
+                    }
+                  >
+                    <div
+                      className={`${s.sendBtn} w-8 h-8 cursor-pointer rounded-full border border-gray-200 ${showStopBtn ? s.stopBtn : query.trim().length > 0 ? s.active : ''}`}
+                      onClick={showStopBtn ? onStopResponding : handleSend}
+                    />
+                  </Tooltip>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

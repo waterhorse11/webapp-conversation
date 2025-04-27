@@ -7,25 +7,30 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 
+COPY ./.next ./.next
+COPY ./public ./public
+COPY ./package*.json ./
+COPY ./.env.local ./.env.local
+COPY ./next.config.js ./next.config.js
 # 复制源代码
-COPY . .
+# COPY . .
 # 执行构建
-RUN npm run build
+# RUN npm run build
 
-# Production stage
-FROM node:19-bullseye-slim
+# # Production stage
+# FROM node:19-bullseye-slim
 
-WORKDIR /app
+# WORKDIR /app
 
-# 只复制必要的文件
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/.env.local ./.env.local
-COPY --from=builder /app/next.config.js ./next.config.js
+# # 只复制必要的文件
+# COPY --from=builder /app/.next ./.next
+# COPY --from=builder /app/public ./public
+# COPY --from=builder /app/package*.json ./
+# COPY --from=builder /app/.env.local ./.env.local
+# COPY --from=builder /app/next.config.js ./next.config.js
 
-# 只安装生产环境依赖
-RUN npm install --production
+# # 只安装生产环境依赖
+# RUN npm install --production
 
 EXPOSE 3000
 

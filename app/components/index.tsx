@@ -23,13 +23,13 @@ import { getAppId, getApiKey, AI_PLUS_CONFIGS, APP_INFO, isShowPrompt, promptTem
 import type { Annotation as AnnotationType } from '@/types/log'
 import { addFileInfos, sortAgentSorts } from '@/utils/tools'
 import Tooltip from '@/app/components/base/tooltip'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
+import { useSidebar } from '@/app/context/SidebarContext'
 
 export type IMainProps = {
   params?: any
-  component?: FC
+  component?: FC<{ onShowTogglePinApp?: (id: string) => void }>
 }
-
 // 添加一个常量用于存储删除的会话 ID
 const DELETED_CONVERSATIONS_KEY = 'deleted_conversations'
 
@@ -65,27 +65,41 @@ const Main: FC<IMainProps> = ({
   const { t } = useTranslation()
   const media = useBreakpoints()
   const isMobile = media === MediaType.mobile
-  // const currentApp = AI_PLUS_CONFIGS[params?.appId] || AI_PLUS_CONFIGS['43192a18-2b15-451e-9aec-37d55d5673db']
-  // const APP_ID = currentApp?.appId
-  // const API_KEY = currentApp?.apiKey
   const APP_ID = getAppId()
   const API_KEY = getApiKey()
   const hasSetAppConfig = APP_ID && API_KEY
-  console.log(APP_ID, API_KEY);
   const router = useRouter()
 
+  const {
+    isShowSidebar,
+    currentId: sidebarCurrentId,
+    list: sidebarList,
+    handleSidebarVisibility,
+    handleConversationIdChange: updateSidebarConversationId,
+    setList: updateSidebarList,
+    setShowTogglePinApp
+  } = useSidebar()
+
+  const pathname = usePathname()
   const [isNewChat, setIsNewChat] = useState(false)
   useEffect(() => {
     if (params?.conversationId) {
       // setCurrConversationId(params.conversationId, APP_ID)
+      updateSidebarConversationId(params.conversationId)
       handleConversationIdChange(params.conversationId)
     }
     if (params?.isNewChat !== undefined) {
       setIsNewChat(params.isNewChat)
-      console.log("isNewChat", params.isNewChat)
+      // setChatStarted()
+      // console.log('isChatStarted', isChatStarted, params?.conversationId, params?.isNewChat)
     }
   }, [params?.conversationId, params?.isNewChat])
 
+  const [selectedAppId, setSelectedAppId] = useState<string | null>(null)
+
+  const handleShowTogglePinApp = (id: string) => {
+    setShowTogglePinApp(id)
+  }
   /*
   * app info
   */
@@ -94,7 +108,6 @@ const Main: FC<IMainProps> = ({
   const [promptConfig, setPromptConfig] = useState<PromptConfig | null>(null)
   const [inited, setInited] = useState<boolean>(false)
   // in mobile, show sidebar by click button
-  const [isShowSidebar, { setTrue: showSidebar, setFalse: hideSidebar }] = useBoolean(true)
   const [visionConfig, setVisionConfig] = useState<VisionSettings | undefined>({
     enabled: false,
     number_limits: 2,
@@ -135,6 +148,13 @@ const Main: FC<IMainProps> = ({
     setExistConversationInfo,
   } = useConversation()
 
+  // 同步 conversationList 到 SidebarContext
+  // useEffect(() => {
+  //   if (conversationList) {
+  //     updateSidebarList(conversationList)
+  //   }
+  // }, [conversationList])
+
   const [conversationIdChangeBecauseOfNew, setConversationIdChangeBecauseOfNew, getConversationIdChangeBecauseOfNew] = useGetState(false)
   const [isChatStarted, { setTrue: setChatStarted, setFalse: setChatNotStarted }] = useBoolean(false)
   const handleStartChat = (inputs: Record<string, any>) => {
@@ -150,12 +170,7 @@ const Main: FC<IMainProps> = ({
       setChatList(generateNewChatListWithOpenStatement('', inputs))
     }
   }
-  const hasSetInputs = (() => {
-    if (!isNewConversation)
-      return true
-
-    return isChatStarted
-  })()
+  const hasSetInputs = true // 暂时移除这个条件，让内容始终显示
 
   const conversationName = currConversationInfo?.name || t('app.chat.newChatDefaultName') as string
   const conversationIntroduction = currConversationInfo?.introduction || ''
@@ -215,26 +230,29 @@ const Main: FC<IMainProps> = ({
       })
     }
 
-    if (isNewConversation && isChatStarted)
-      setChatList(generateNewChatListWithOpenStatement())
+    // if (isNewConversation && isChatStarted)
+    //   setChatList(generateNewChatListWithOpenStatement())
+    //   console.log('calculatedIntroduction 开始')
   }
   useEffect(handleConversationSwitch, [currConversationId, inited])
 
   const handleConversationIdChange = (id: string) => {
-    console.log(id)
     if (id === '-1') {
       createNewChat()
       setConversationIdChangeBecauseOfNew(true)
       setChatStarted()
+      // 确保在新建会话时更新 SidebarContext
+      updateSidebarList(conversationList)
     }
     else {
       setConversationIdChangeBecauseOfNew(false)
     }
     // trigger handleConversationSwitch
     setCurrConversationId(id, APP_ID)
+    updateSidebarConversationId(id)
     // 只在移动端时隐藏侧边栏
     if (isMobile) {
-      hideSidebar()
+      handleSidebarVisibility()
     }
   }
 
@@ -255,14 +273,16 @@ const Main: FC<IMainProps> = ({
     if (conversationList.some(item => item.id === '-1'))
       return
 
-    setConversationList(produce(conversationList, (draft) => {
+    const newList = produce(conversationList, (draft) => {
       draft.unshift({
         id: '-1',
         name: t('app.chat.newChatDefaultName'),
         inputs: newConversationInputs,
         introduction: conversationIntroduction,
       })
-    }))
+    })
+    setConversationList(newList)
+    updateSidebarList(newList)
   }
 
   // sometime introduction is not applied to state
@@ -293,7 +313,8 @@ const Main: FC<IMainProps> = ({
     }
     (async () => {
       try {
-        const [conversationData, appParams] = await Promise.all([fetchConversations(), fetchAppParams()])
+        const conversationData = await fetchConversations()
+        const appParams = await fetchAppParams()
 
         // 获取已删除的会话 ID
         const deletedIds = getDeletedConversations()
@@ -306,13 +327,20 @@ const Main: FC<IMainProps> = ({
         const _conversationId = getConversationIdFromStorage(APP_ID)
         const isNotNewConversation = filteredConversations.some(item => item.id === _conversationId)
 
+        // console.log('appParams', appParams)
+
         // fetch new conversation info
         const { user_input_form, opening_statement: introduction, file_upload, system_parameters }: any = appParams
+        // console.log('introduction', introduction)
         setLocaleOnClient(APP_INFO.default_language, true)
         setNewConversationInfo({
           name: t('app.chat.newChatDefaultName'),
           introduction,
         })
+        if (isNewConversation) {
+          setChatList(generateNewChatListWithOpenStatement(introduction))
+          // console.log('calculatedIntroduction 开始')
+        }
         const prompt_variables = userInputsFormToPromptVariables(user_input_form)
         setPromptConfig({
           prompt_template: promptTemplate,
@@ -326,15 +354,16 @@ const Main: FC<IMainProps> = ({
           image_file_size_limit: system_parameters?.system_parameters || 0,
         })
         setConversationList(filteredConversations)
+        updateSidebarList(filteredConversations)
 
         // 修改这里的逻辑，优先考虑 params 中的 isNewChat
-        if (params?.isNewChat) {
-          // 如果是新对话，强制设置为 '-1'
-          setCurrConversationId('-1', APP_ID, false)
-        } else if (isNotNewConversation) {
-          // 只有在不是新对话时，才使用存储的会话 ID
-          setCurrConversationId(_conversationId, APP_ID, false)
-        }
+        // if (params?.isNewChat) {
+        //   // 如果是新对话，强制设置为 '-1'
+        //   setCurrConversationId('-1', APP_ID, false)
+        // } else if (isNotNewConversation) {
+        //   // 只有在不是新对话时，才使用存储的会话 ID
+        //   setCurrConversationId(_conversationId, APP_ID, false)
+        // }
 
         setInited(true)
       }
@@ -576,9 +605,11 @@ const Main: FC<IMainProps> = ({
             const { data: allConversations }: any = await fetchConversations()
             const newConversationId = allConversations[0].id
             await updateConversationName(newConversationId)
-
+            setConversationIdChangeBecauseOfNew(false)
+            // setCurrConversationId(newConversationId, APP_ID)
+            // updateSidebarConversationId(newConversationId)
+            router.push(`/chat/${tempNewConversationId}`)
           }
-          setConversationIdChangeBecauseOfNew(false)
           resetNewConversationInputs()
           setChatNotStarted()
           setCurrConversationId(tempNewConversationId, APP_ID, true)
@@ -745,15 +776,15 @@ const Main: FC<IMainProps> = ({
       return null
     return (
       <Sidebar
-        list={conversationList}
+        list={sidebarList}
         onCurrentIdChange={handleConversationIdChange}
-        currentId={currConversationId}
+        currentId={sidebarCurrentId}
         copyRight={APP_INFO.copyright || APP_INFO.title}
         onPinConversation={handlePinConversation}
         onRenameConversation={handleRenameConversation}
         onDeleteConversation={handleDeleteConversation}
         onHandleConversationIdChange={handleConversationIdChange}
-        onHideSideBar={hideSidebar}
+        onHideSideBar={handleSidebarVisibility}
       />
     )
   }
@@ -764,7 +795,6 @@ const Main: FC<IMainProps> = ({
 
   useEffect(() => {
     if (!isNewConversation && currConversationId) {
-      console.log("fetchChatList", currConversationId)
       fetchChatList(currConversationId).then((res: any) => {
         const { data } = res
         // 找到最后一条模型选择消息
@@ -823,6 +853,8 @@ const Main: FC<IMainProps> = ({
         const filteredConversations = allConversations.filter((conv: any) => !deletedIds.includes(conv.id))
 
         setConversationList(filteredConversations)
+        // 使用最新的过滤后的会话列表更新 sidebar
+        updateSidebarList(filteredConversations)
       }
     } catch (err) {
       console.error('Failed to update conversation name:', err)
@@ -869,6 +901,7 @@ const Main: FC<IMainProps> = ({
       // 更新前端的会话列表
       const newConversationList = conversationList.filter(item => item.id !== id)
       setConversationList(newConversationList)
+      updateSidebarList(newConversationList)
 
       // 保存删除的会话 ID 到 localStorage
       const deletedIds = getDeletedConversations()
@@ -885,13 +918,6 @@ const Main: FC<IMainProps> = ({
     }
   }
 
-  // 添加 URL 更新处理函数
-  const handleUrlChange = useCallback((url: string) => {
-    console.log('URL changed to:', url);
-  }, []);
-
-  // 使用 usePushStateListener
-  usePushStateListener(handleUrlChange);
 
   if (appUnavailable)
     return <AppUnavailable isUnknownReason={isUnknownReason} errMessage={!hasSetAppConfig ? 'Please set APP_ID and API_KEY in config/index.tsx' : ''} />
@@ -911,19 +937,6 @@ const Main: FC<IMainProps> = ({
         {/* main */}
         <div className={`relative flex-1 flex flex-col min-w-0 pt-[7px] transition-all duration-300 ${!isMobile && isShowSidebar ? 'ml-[240px]' : 'ml-0'}`}>
           <div className={`relative flex-1 flex flex-col min-w-0 bg-white mb-[7px] mr-[7px] rounded-lg ${isShowSidebar ? '' : 'ml-[7px]'}`}>
-            {/* {!hasSetInputs && (
-              <ConfigSence
-                conversationName={conversationName}
-                hasSetInputs={hasSetInputs}
-                isPublicVersion={isShowPrompt}
-                siteInfo={APP_INFO}
-                promptConfig={promptConfig}
-                onStartChat={handleStartChat}
-                canEditInputs={canEditInputs}
-                savedInputs={currInputs as Record<string, any>}
-                onInputsChange={setCurrInputs}
-              ></ConfigSence>
-            )} */}
             {!isShowSidebar && !isMobile && (
               <Tooltip selector='sidebar-open'
                 position='right'
@@ -934,7 +947,7 @@ const Main: FC<IMainProps> = ({
                 }
               >
                 <button className="absolute left-2 top-2 p-1 w-8 h-8 hover:bg-gray-200 rounded-lg flex items-center justify-center z-50"
-                  onClick={showSidebar}
+                  onClick={handleSidebarVisibility}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" width="20" height="20" viewBox="0 0 1024 1024" className="iconify text-gray-500"><path d="M861.866667 162.133333c-17.066667-17.066667-42.666667-29.866667-68.266667-29.866666H226.133333c-25.6 0-51.2 8.533333-68.266666 29.866666S128 204.8 128 230.4v567.466667c0 25.6 8.533333 51.2 29.866667 68.266666 17.066667 17.066667 42.666667 29.866667 68.266666 29.866667h567.466667c25.6 0 51.2-8.533333 68.266667-29.866667 17.066667-17.066667 29.866667-42.666667 29.866666-68.266666V226.133333c0-25.6-8.533333-46.933333-29.866666-64zM366.933333 814.933333H226.133333c-4.266667 0-8.533333 0-12.8-4.266666-4.266667-4.266667-4.266666-8.533333-4.266666-12.8V226.133333c0-4.266667 0-8.533333 4.266666-12.8 4.266667-4.266667 8.533333-4.266667 12.8-4.266666h140.8v605.866666z m448-17.066666c0 4.266667 0 8.533333-4.266666 12.8-4.266667 4.266667-8.533333 4.266667-12.8 4.266666h-354.133334V209.066667h354.133334c4.266667 0 8.533333 0 12.8 4.266666 4.266667 4.266667 4.266667 8.533333 4.266666 12.8v571.733334z" fill="currentColor" /></svg>
                 </button>
@@ -943,7 +956,7 @@ const Main: FC<IMainProps> = ({
             {
               hasSetInputs && (
                 <div className='relative grow h-[200px] w-full max-w-full mx-auto overflow-hidden'>
-                  {Component ? <Component /> : (
+                  {Component ? <Component onShowTogglePinApp={handleShowTogglePinApp} /> : (
                     <Chat
                       chatList={chatList}
                       onSend={handleSend}

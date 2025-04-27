@@ -1,32 +1,27 @@
-import { getLocaleOnServer } from '@/i18n/server'
-import { Metadata } from 'next'
-
 import './styles/globals.css'
 import './styles/markdown.scss'
+import dynamic from 'next/dynamic'
 
-export const metadata: Metadata = {
-  icons: {
-    icon: '/WAC-LOGO.svg',  // 将 SVG 文件放在 public 目录下
-  },
-}
+// 完全禁用SSR，使用客户端渲染
+const ClientRootNoSSR = dynamic(() => import('./components/ClientRoot'), {
+  ssr: false,
+})
 
-const LocaleLayout = ({
+export default function RootLayout({
   children,
 }: {
   children: React.ReactNode
-}) => {
-  const locale = getLocaleOnServer()
+}) {
   return (
-    <html lang={locale ?? 'en'} className="h-full">
+    <html lang="en" className="h-full">
+      <head>
+        <link rel="icon" href="/WAC-LOGO.svg" />
+      </head>
       <body className="h-full">
-        <div className="overflow-x-auto">
-          <div className="w-screen h-screen min-w-[300px]">
-            {children}
-          </div>
-        </div>
+        <ClientRootNoSSR>
+          {children}
+        </ClientRootNoSSR>
       </body>
     </html>
   )
 }
-
-export default LocaleLayout

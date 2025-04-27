@@ -6,7 +6,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData()
     const { user } = getInfo(request)
     formData.append('user', user)
-    const { app_id: appId } = await request.json()
+    const appId = request.headers.get('x-app-id') || '43192a18-2b15-451e-9aec-37d55d5673db';
     const res = await clients[appId].fileUpload(formData)
     return new Response(res.data.id as any)
   }

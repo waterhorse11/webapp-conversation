@@ -1,3 +1,5 @@
+'use client'
+
 import React, { useState, useRef, useEffect, useMemo } from 'react'
 import type { FC } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -19,7 +21,9 @@ import { Modal } from '@/app/components/base/modal'
 import ConfigSence from '@/app/components/config-scence'
 import Header from '@/app/components/header'
 import { APP_INFO } from '@/config'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
+import { useSidebar } from '@/app/context/SidebarContext'
+import { APPS } from '@/config/apps'
 
 function classNames(...classes: any[]) {
   return classes.filter(Boolean).join(' ')
@@ -65,7 +69,22 @@ const Sidebar: FC<ISidebarProps> = ({
   const [currentItem, setCurrentItem] = useState<ConversationItem | null>(null)
   const [showAllConversations, setShowAllConversations] = useState(false)
   const [menuPosition, setMenuPosition] = useState<{ top: number; right: number } | null>(null);
+  const { showTogglePinApp, setShowTogglePinApp } = useSidebar()
+  const [showNewPinApp, setShowNewPinApp] = useState<string>("")
+  const [selectedAppId, setSelectedAppId] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('selectedAppId') || null;
+    }
+    return null;
+  });
+  const [isAiPlusActive, setIsAiPlusActive] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('isAiPlusActive') === 'true';
+    }
+    return false;
+  });
   const router = useRouter()
+  const pathname = usePathname()
 
   const handleRename = (item: ConversationItem) => {
     setCurrentItem(item)
@@ -95,12 +114,10 @@ const Sidebar: FC<ISidebarProps> = ({
 
   const handleConversationClick = (id: string) => {
     if (id === '-1') {
-      // onCurrentIdChange(id)
-      console.log(id)
       router.push(`/chat/new`, { scroll: false })
     } else {
       router.push(`/chat/${id}`, { scroll: false })
-      // onCurrentIdChange(id)
+
     }
   }
 
@@ -119,6 +136,44 @@ const Sidebar: FC<ISidebarProps> = ({
     };
   }, []);
 
+  useEffect(() => {
+    setShowNewPinApp(showTogglePinApp || "")
+  }, [showTogglePinApp])
+
+  // 监听 selectedAppId 的变化
+  useEffect(() => {
+    if (selectedAppId) {
+      localStorage.setItem('selectedAppId', selectedAppId);
+    } else {
+      localStorage.removeItem('selectedAppId');
+    }
+  }, [selectedAppId])
+
+  // 监听路由变化设置 selectedAppId
+  useEffect(() => {
+    if (!pathname) return;
+    if (pathname === '/chat/new' || pathname === '/') {
+      setSelectedAppId('0')
+      setIsAiPlusActive(false)
+    } else if (pathname === '/ai-plus') {
+      setSelectedAppId('0')
+      setIsAiPlusActive(true)
+    } else if (pathname.startsWith('/ppt-generator/')) {
+      setSelectedAppId('1')
+      setIsAiPlusActive(false)
+    } else if (pathname.startsWith('/ai-plus/')) {
+      const app = APPS.find(app => app.href === pathname)
+      if (app) {
+        setSelectedAppId(app.id)
+        setIsAiPlusActive(false)
+      }
+    }
+  }, [pathname])
+
+  useEffect(() => {
+    localStorage.setItem('isAiPlusActive', String(isAiPlusActive));
+  }, [isAiPlusActive]);
+
   return (
     <>
       <div
@@ -133,7 +188,9 @@ const Sidebar: FC<ISidebarProps> = ({
           <div className="flex flex-shrink-0 p-0 !pb-0">
             <Button
               type="custom"
-              onClick={() => { router.push(`/chat/new`, { scroll: false }) }}
+              onClick={() => {
+                router.push(`/chat/new`, { scroll: false })
+              }}
               className="group block w-full flex-shrink-0 !justify-start !h-11 !pl-2 !text-black text-sm bg-white hover:bg-white !hover:shadow-lg hover:border-gray-300 items-center border-solid border border-gray-200 rounded-xl">
               <svg xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" className="mr-2 h-5 w-5" width="20" height="20" viewBox="0 0 1024 1024">
                 <path d="M475.136 561.152v89.74336c0 20.56192 16.50688 37.23264 36.864 37.23264s36.864-16.67072 36.864-37.23264v-89.7024h89.7024c20.60288 0 37.2736-16.54784 37.2736-36.864 0-20.39808-16.67072-36.864-37.2736-36.864H548.864V397.63968A37.0688 37.0688 0 0 0 512 360.448c-20.35712 0-36.864 16.67072-36.864 37.2736v89.7024H385.4336a37.0688 37.0688 0 0 0-37.2736 36.864c0 20.35712 16.67072 36.864 37.2736 36.864h89.7024z" fill="currentColor" />
@@ -144,7 +201,12 @@ const Sidebar: FC<ISidebarProps> = ({
 
           <div className="mt-4">
             <div className="ai-plus-part">
-              <a onClick={() => router.push('/ai-plus')} className="nav-item ai-plus-square flex items-center px-2 py-2 rounded-lg hover:bg-gray-200 cursor-pointer">
+              <a
+                onClick={() => {
+                  router.push('/ai-plus', { scroll: false });
+                }}
+                className={`nav-item ai-plus-square flex items-center px-2 py-2 mb-[2px] rounded-lg hover:bg-gray-200 cursor-pointer ${isAiPlusActive ? 'bg-gray-200' : ''}`}
+              >
                 <svg xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" name="a_ai" className="nav-icon iconify mr-2 w-5 h-5" width="1em" height="1em" viewBox="0 0 1024 1024">
                   <path d="M202.197333 444.928c-17.365333 17.365333-46.506667 14.933333-56.192-7.637333a221.738667 221.738667 0 0 1 360.362667-244.352l179.2 179.2A37.973333 37.973333 0 0 1 631.893333 425.813333l-179.2-179.2a145.664 145.664 0 0 0-241.365333 148.650667c5.632 17.194667 3.669333 36.864-9.088 49.621333z m140.714667 157.738667a37.973333 37.973333 0 0 0 0 53.76l174.677333 174.634666a221.653333 221.653333 0 0 0 363.52-236.672c-9.045333-23.552-39.04-26.538667-56.917333-8.704-12.373333 12.416-14.72 31.36-9.856 48.213334a145.664 145.664 0 0 1-242.986667 143.445333l-174.72-174.677333a37.973333 37.973333 0 0 0-53.717333 0zM448.725333 512a63.317333 63.317333 0 1 0 126.592 0 63.317333 63.317333 0 0 0-126.634666 0zM380.373333 330.112l-187.477333 187.477333a221.653333 221.653333 0 0 0 221.781333 368.64c25.429333-7.765333 29.610667-39.424 10.794667-58.197333-11.690667-11.733333-29.226667-14.634667-45.44-11.221333A145.664 145.664 0 0 1 246.613333 571.306667l187.477334-187.477334a37.973333 37.973333 0 1 0-53.76-53.717333z m263.168 363.776a37.973333 37.973333 0 1 1-53.76-53.76l187.52-187.477333a145.664 145.664 0 0 0-133.418666-245.461334c-16.213333 3.413333-33.749333 0.512-45.482667-11.221333-18.773333-18.773333-14.634667-50.432 10.794667-58.24a221.653333 221.653333 0 0 1 221.866666 368.64l-187.52 187.52z" fill="currentColor"></path>
                 </svg>
@@ -153,28 +215,20 @@ const Sidebar: FC<ISidebarProps> = ({
 
               <div className="mt-0 space-y-0.5">
                 {useMemo(() => {
-                  const savedPinnedApps = localStorage.getItem('ai_plus_pinned_apps');
+                  if (typeof window === 'undefined') return null;
+
+                  const savedPinnedApps = localStorage.getItem('ai_plus_pinned_times');
                   if (!savedPinnedApps) return null;
 
-                  const apps: AppItem[] = [
-                    {
-                      id: '1',
-                      icon: '/ppt.png',
-                      title: 'PPT 助手',
-                      href: '/ppt-generator/index.html'
-                    },
-                    {
-                      id: '2',
-                      icon: 'https://kimi-img.moonshot.cn/prod-chat-kimi/avatar/kimiplus/feman.png',
-                      title: '中译英专家',
-                      href: '/ai-plus/fff43c71-e05d-40d0-b533-e1c9a4df1c5a'
-                    }
-                  ];
+                  const apps = APPS;
 
                   try {
                     const pinnedIds = JSON.parse(savedPinnedApps);
-                    const pinnedApps = apps
-                      .filter(app => pinnedIds.includes(app.id))
+                    const sortedPinnedIds = Object.keys(pinnedIds).sort((a, b) => pinnedIds[a] - pinnedIds[b]);
+                    // 直接使用sortedPinnedIds来过滤和排序
+                    const pinnedApps = sortedPinnedIds
+                      .map(id => apps.find(app => app.id === id))
+                      .filter((app): app is AppItem => app !== undefined)
                       .slice(-5);
 
                     return pinnedApps.map(app => (
@@ -193,7 +247,7 @@ const Sidebar: FC<ISidebarProps> = ({
                             router.push(app.href, { scroll: false })
                           }
                         }}
-                          className="ai-plus-item group flex items-center px-1.5 py-2 rounded-lg hover:bg-gray-200 cursor-pointer">
+                          className={`ai-plus-item group flex items-center px-1.5 py-2 rounded-lg hover:bg-gray-200 cursor-pointer ${selectedAppId === app.id ? '!bg-gray-200' : ''}`}>
                           <div className="ai-plus-info flex items-center flex-1">
                             <div className="ai-plus-avatar w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center mr-1.5 overflow-hidden">
                               <img src={app.icon} alt={app.title} className="w-5 h-5 rounded-full object-cover" />
@@ -220,25 +274,36 @@ const Sidebar: FC<ISidebarProps> = ({
                             }}
                             onClick={e => e.stopPropagation()}
                           >
-                            <a
-                              href={app.href}
-                              target="_blank"
-                              className="flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                onCurrentIdChange('-1')
+                                if (app.id === '1') {
+                                  window.open(app.href, '_blank')
+                                } else {
+                                  router.push(app.href, { scroll: false })
+                                }
+                                setOpenMenuId(null)
+                              }}
+                              className="flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full"
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 1024 1024">
                                 <path d="M475.136 561.152v89.74336c0 20.56192 16.50688 37.23264 36.864 37.23264s36.864-16.67072 36.864-37.23264v-89.7024h89.7024c20.60288 0 37.2736-16.54784 37.2736-36.864 0-20.39808-16.67072-36.864-37.2736-36.864H548.864V397.63968A37.0688 37.0688 0 0 0 512 360.448c-20.35712 0-36.864 16.67072-36.864 37.2736v89.7024H385.4336a37.0688 37.0688 0 0 0-37.2736 36.864c0 20.35712 16.67072 36.864 37.2736 36.864h89.7024z" fill="currentColor" />
                                 <path d="M512 118.784c-223.96928 0-405.504 181.57568-405.504 405.504 0 78.76608 22.44608 152.3712 61.35808 214.6304l-44.27776 105.6768a61.44 61.44 0 0 0 56.68864 85.1968H512c223.92832 0 405.504-181.53472 405.504-405.504 0-223.92832-181.57568-405.504-405.504-405.504z m-331.776 405.504a331.776 331.776 0 1 1 331.73504 331.776H198.656l52.59264-125.5424-11.59168-16.62976A330.09664 330.09664 0 0 1 180.224 524.288z" fill="currentColor" />
                               </svg>
                               <span>新建会话</span>
-                            </a>
+                            </button>
                             <button
                               className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                const pinnedApps = JSON.parse(localStorage.getItem('ai_plus_pinned_apps') || '[]');
-                                const newPinnedApps = pinnedApps.filter((id: string) => id !== app.id);
-                                localStorage.setItem('ai_plus_pinned_apps', JSON.stringify(newPinnedApps));
+                                const pinnedTimes = JSON.parse(localStorage.getItem('ai_plus_pinned_times') || '{}');
+                                delete pinnedTimes[app.id]
+                                localStorage.setItem('ai_plus_pinned_times', JSON.stringify(pinnedTimes ? pinnedTimes : {}));
+
                                 setOpenMenuId(null);
                               }}
                             >
@@ -252,10 +317,9 @@ const Sidebar: FC<ISidebarProps> = ({
                       </div>
                     ));
                   } catch (error) {
-                    console.error('Error parsing pinned apps:', error);
-                    return null;
+                    console.error('Error parsing saved pinned apps:', error)
                   }
-                }, [openMenuId, menuPosition])}
+                }, [openMenuId, menuPosition, selectedAppId, showNewPinApp])}
               </div>
             </div>
 

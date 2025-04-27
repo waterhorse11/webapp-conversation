@@ -1,24 +1,42 @@
+'use client'
+
 import React, { useState, useEffect } from 'react'
 import type { FC } from 'react'
 import Link from 'next/link'
 import './styles.css'
 import { useRouter } from 'next/navigation'
+import { APP_GROUPS, AppItem } from '@/config/apps'
+import Button from '../base/button'
+
+// 本地存储key
+const PINNED_TIMES_KEY = 'ai_plus_pinned_times'
 
 // 定义应用卡片类型
-interface AppCardProps {
-    id: string
-    icon: string
-    title: string
-    description: string
-    href: string
-    isPinned?: boolean
+interface AppCardProps extends AppItem {
     onTogglePin?: (id: string) => void
+    onShowTogglePinApp?: (id: string) => void
+}
+
+// 定义应用分组类型
+interface AppGroup {
+    title: string
+    apps: AppCardProps[]
 }
 
 // 应用卡片组件
-const KimiPlusCard: FC<AppCardProps> = ({ icon, title, description, href, isPinned, onTogglePin, id }) => {
+const KimiPlusCard: FC<AppCardProps> = ({ icon, title, description, href, isPinned, onTogglePin, id, onShowTogglePinApp }) => {
+    const router = useRouter()
     return (
-        <Link href={href} className="kimi-plus-card">
+        <div
+            onClick={() => {
+                if (id === '1') {
+                    window.open(href, '_blank')
+                } else {
+                    router.push(href, { scroll: false })
+                }
+            }}
+            className="kimi-plus-card"
+        >
             <div className="kimi-plus-card-avatar">
                 <img className="image-main" alt="" loading="eager" src={icon} />
             </div>
@@ -30,26 +48,25 @@ const KimiPlusCard: FC<AppCardProps> = ({ icon, title, description, href, isPinn
             </div>
             <div className={`kimi-plus-card-pin ${isPinned ? 'active' : ''}`} onClick={(e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 onTogglePin && onTogglePin(id);
+                onShowTogglePinApp && onShowTogglePinApp(Date.now().toString());
             }}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 1024 1024" className="iconify">
                     <path d="M499.541333 117.76a38.4 38.4 0 0 1 54.272 0l352.426667 352.426667a38.4 38.4 0 1 1-54.314667 54.272l-2.218666-2.218667-190.08 190.122667c0.597333 71.509333-23.893333 141.397333-76.416 193.877333a38.4 38.4 0 0 1-54.314667 0l-178.517333-178.517333-141.269334 140.373333a38.4 38.4 0 0 1-54.144-54.442667l141.098667-140.202666-178.304-178.346667a38.4 38.4 0 0 1 0-54.314667c52.48-52.48 122.368-77.013333 193.877333-76.373333l190.08-190.122667-2.176-2.218666a38.4 38.4 0 0 1 0-54.314667z" fill="currentColor"></path>
                 </svg>
             </div>
-        </Link>
+        </div>
     )
 }
 
-// 定义应用分组类型
-interface AppGroup {
-    title: string
-    apps: AppCardProps[]
+
+
+interface AiPlusProps {
+    onShowTogglePinApp?: (id: string) => void
 }
 
-// 本地存储key
-const PINNED_APPS_KEY = 'ai_plus_pinned_apps'
-
-const AiPlus: FC = () => {
+const AiPlus: FC<AiPlusProps> = ({ onShowTogglePinApp }) => {
     // 导航项
     const navItems = ['我的置顶', '官方推荐', '办公提效', '辅助写作']
 
@@ -60,56 +77,21 @@ const AiPlus: FC = () => {
 
     // 从本地存储初始化应用数据
     const initializeAppGroups = () => {
-        const savedPinnedApps = localStorage.getItem(PINNED_APPS_KEY)
-        let initialGroups = [
-            {
-                title: '我的置顶',
-                apps: []
-            },
-            {
-                title: '官方推荐',
-                apps: [
-                    {
-                        id: '1',
-                        icon: './ppt.png',
-                        title: 'PPT 助手',
-                        description: '一键生成PPT',
-                        href: '/ppt-generator/index.html',
-                        isPinned: false
-                    },
-                ]
-            },
-            {
-                title: '办公提效',
-                apps: [
-                    {
-                        id: '1',
-                        icon: './ppt.png',
-                        title: 'PPT 助手',
-                        description: '一键生成PPT',
-                        href: '/ppt-generator/index.html',
-                        isPinned: false
-                    },
-                ]
-            },
-            {
-                title: '辅助写作',
-                apps: [
-                    {
-                        id: '2',
-                        icon: 'https://kimi-img.moonshot.cn/prod-chat-kimi/avatar/kimiplus/feman.png',
-                        title: '中译英专家',
-                        description: '中译英专家',
-                        href: '/ai-plus/fff43c71-e05d-40d0-b533-e1c9a4df1c5a',
-                        isPinned: false
-                    },
-                ]
-            }
-        ]
+        const savedPinnedApps = localStorage.getItem(PINNED_TIMES_KEY)
+        // 将配置的APP_GROUPS转换为组件需要的类型
+        let initialGroups: AppGroup[] = APP_GROUPS.map(group => ({
+            title: group.title,
+            apps: group.apps.map(app => ({
+                ...app,
+                isPinned: false,
+                onTogglePin: undefined,
+                onShowTogglePinApp: undefined
+            }))
+        }));
 
         if (savedPinnedApps) {
             try {
-                const pinnedAppIds = JSON.parse(savedPinnedApps)
+                const pinnedAppIds = Object.keys(JSON.parse(savedPinnedApps))
                 // 更新所有应用的置顶状态
                 initialGroups = initialGroups.map(group => ({
                     ...group,
@@ -139,13 +121,22 @@ const AiPlus: FC = () => {
 
     const [appGroups, setAppGroups] = useState<AppGroup[]>(initializeAppGroups)
 
-    // 保存置顶状态到本地存储
-    const savePinnedApps = (groups: AppGroup[]) => {
-        const allApps = groups.flatMap(group => group.apps)
-        const pinnedAppIds = Array.from(new Set(
-            allApps.filter(app => app.isPinned).map(app => app.id)
-        ))
-        localStorage.setItem(PINNED_APPS_KEY, JSON.stringify(pinnedAppIds))
+    // 更新应用的置顶时间
+    const updatePinnedTime = (id: string, isPinned: boolean) => {
+        try {
+            const savedPinnedTimes = localStorage.getItem(PINNED_TIMES_KEY)
+            let pinnedTimes: Record<string, number> = savedPinnedTimes ? JSON.parse(savedPinnedTimes) : {}
+
+            if (isPinned) {
+                pinnedTimes[id] = Date.now()
+            } else {
+                delete pinnedTimes[id]
+            }
+
+            localStorage.setItem(PINNED_TIMES_KEY, JSON.stringify(pinnedTimes))
+        } catch (error) {
+            console.error('Error updating pinned times:', error)
+        }
     }
 
     // 切换置顶状态
@@ -159,7 +150,10 @@ const AiPlus: FC = () => {
                     ...group,
                     apps: group.apps.map(app => {
                         if (app.id === id) {
-                            return { ...app, isPinned: !app.isPinned };
+                            const newPinnedState = !app.isPinned;
+                            // 更新置顶时间
+                            updatePinnedTime(id, newPinnedState);
+                            return { ...app, isPinned: newPinnedState };
                         }
                         return app;
                     })
@@ -182,7 +176,7 @@ const AiPlus: FC = () => {
             }
 
             // 保存到本地存储
-            savePinnedApps(updatedGroups);
+            // savePinnedApps(updatedGroups);
             return updatedGroups;
         });
     };
@@ -238,6 +232,7 @@ const AiPlus: FC = () => {
                                                     <KimiPlusCard
                                                         {...app}
                                                         onTogglePin={handleTogglePin}
+                                                        onShowTogglePinApp={onShowTogglePinApp}
                                                     />
                                                 </li>
                                             ))}
@@ -254,6 +249,7 @@ const AiPlus: FC = () => {
                                             <KimiPlusCard
                                                 {...app}
                                                 onTogglePin={handleTogglePin}
+                                                onShowTogglePinApp={onShowTogglePinApp}
                                             />
                                         </li>
                                     ))}
