@@ -489,6 +489,7 @@ const Main: FC<IMainProps> = ({
           onCompleted: () => {
             setRespondingFalse()
             setConversationIdChangeBecauseOfNew(true)
+            setRespondingFalse()
           },
           onError: (error) => {
             setRespondingFalse()
