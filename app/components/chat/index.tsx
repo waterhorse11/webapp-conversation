@@ -8,7 +8,7 @@ import s from './style.module.css'
 import Answer from './answer'
 import Question from './question'
 import type { FeedbackFunc } from './type'
-import type { ChatItem, VisionFile, VisionSettings } from '@/types/app'
+import type { ChatItem, Feedbacktype, VisionFile, VisionSettings } from '@/types/app'
 import { TransferMethod } from '@/types/app'
 import Tooltip from '@/app/components/base/tooltip'
 import Toast from '@/app/components/base/toast'
@@ -18,6 +18,18 @@ import { useImageFiles } from '@/app/components/base/image-uploader/hooks'
 import OnlineSearch from '@/app/components/base/online-search'
 import ModelSelecter from '@/app/components/base/model-selecter'
 import { usePathname } from 'next/navigation'
+import type { CommandTagsParams } from '@/types/tools'
+import { AI_PLUS_CONFIGS } from '@/config'
+import FileFromLocal from '@/app/components/base/file-uploader/file-from-local'
+import {
+  FileContextProvider,
+  useFileStore,
+} from '@/app/components/base/file-uploader/store'
+import type { FileUpload } from '@/app/components/base/features/types'
+import { useFile } from '@/app/components/base/file-uploader/hooks'
+import type { FileEntity } from '@/app/components/base/file-uploader/types'
+import { FileList, FileListInChatInput } from '@/app/components/base/file-uploader'
+import { useStore } from '@/app/components/base/file-uploader/store'
 
 export type IChatProps = {
   chatList: ChatItem[]
@@ -31,16 +43,19 @@ export type IChatProps = {
   isHideSendInput?: boolean
   onFeedback?: FeedbackFunc
   checkCanSend?: () => boolean
-  onSend?: (message: string, files: VisionFile[]) => void
+  onSend?: (message: string, files?: FileEntity[]) => void
   useCurrentUserAvatar?: boolean
   isResponding?: boolean
   controlClearQuery?: number
-  visionConfig?: VisionSettings
+  // visionConfig?: VisionSettings
+  visionConfig?: FileUpload
   currConversationId?: string
   isOnlineSearch?: boolean
   lastSelectedModel?: string
   onStopResponding?: () => void
   isNewChat?: boolean
+  setCommandTags?: (params: CommandTagsParams) => void
+  commandTags?: string
 }
 
 const Chat: FC<IChatProps> = ({
@@ -59,6 +74,8 @@ const Chat: FC<IChatProps> = ({
   lastSelectedModel,
   onStopResponding,
   isNewChat,
+  setCommandTags,
+  commandTags,
 }) => {
   const { t } = useTranslation()
   const { notify } = Toast
@@ -69,8 +86,19 @@ const Chat: FC<IChatProps> = ({
   const [forceShowButton, setForceShowButton] = React.useState(false)
   const [showStopBtn, setShowStopBtn] = React.useState(false)
   const pathname = usePathname()
-
+  const storedAppId = window.localStorage.getItem('x-app-id')
   const [query, setQuery] = React.useState('')
+  const [isUserInteraction, setIsUserInteraction] = React.useState(false)
+  const {
+    handleDragFileEnter,
+    handleDragFileLeave,
+    handleDragFileOver,
+    handleDropFile,
+    handleClipboardPasteFile,
+    handleRemoveFile,
+    isDragActive,
+  } = useFile(visionConfig!)
+
   const handleContentChange = (e: any) => {
     const value = e.target.value
     setQuery(value)
@@ -93,30 +121,101 @@ const Chat: FC<IChatProps> = ({
       setQuery('')
   }, [controlClearQuery])
 
-  const {
-    files,
-    onUpload,
-    onRemove,
-    onReUpload,
-    onImageLinkLoadError,
-    onImageLinkLoadSuccess,
-    onClear,
-  } = useImageFiles()
+
+  // const {
+  //   files,
+  //   onUpload,
+  //   onRemove,
+  //   onReUpload,
+  //   onImageLinkLoadError,
+  //   onImageLinkLoadSuccess,
+  //   onClear,
+  // } = useImageFiles()
+
+  // const handleSend = () => {
+  //   if (!valid() || (checkCanSend && !checkCanSend()))
+  //     return
+
+  //   const entireQuery = isUserInteraction ? `${commandTags}${query}` : query
+  //   onSend(entireQuery, files.filter(file => file.progress !== -1).map(fileItem => ({
+  //     type: 'image',
+  //     transfer_method: fileItem.type,
+  //     url: fileItem.url,
+  //     upload_file_id: fileItem.fileId,
+  //   })))
+  //   setIsUserInteraction(false)
+  //   if (!files.find(item => item.type === TransferMethod.local_file && !item.fileId)) {
+  //     if (files.length)
+  //       onClear()
+  //     if (!isResponding)
+  //       setQuery('')
+  //   }
+  // }
+
+  const FileUploaderWrapper = () => {
+    const { files, setFiles } = useStore(state => ({
+      files: state.files,
+      setFiles: state.setFiles,
+    }))
+
+    useEffect(() => {
+      const element = document.querySelector('[data-file-uploader-wrapper]')
+      if (element) {
+        const handleSendMessage = () => {
+          if (isResponding) {
+            notify({ type: 'info', message: t('appDebug.errorMessage.waitForResponse') })
+            return
+          }
+
+          if (onSend) {
+            if (files.find(item => item.transferMethod === TransferMethod.local_file && !item.uploadedId)) {
+              notify({ type: 'info', message: t('appDebug.errorMessage.waitForFileUpload') })
+              return
+            }
+            if (!query || !query.trim()) {
+              notify({ type: 'info', message: t('appAnnotation.errorMessage.queryRequired') })
+              return
+            }
+            onSend(query, files)
+            setQuery('')
+            setFiles([])
+          }
+        }
+
+        element.addEventListener('send-message', handleSendMessage)
+        return () => {
+          element.removeEventListener('send-message', handleSendMessage)
+        }
+      }
+    }, [files, query, isResponding])
+
+    return (
+      <div className="flex items-center justify-between w-full">
+        {/* <FileListInChatInput fileConfig={visionConfig!} /> */}
+        <FileFromLocal fileConfig={visionConfig!} />
+      </div>
+    )
+  }
 
   const handleSend = () => {
-    if (!valid() || (checkCanSend && !checkCanSend()))
-      return
-    onSend(query, files.filter(file => file.progress !== -1).map(fileItem => ({
-      type: 'image',
-      transfer_method: fileItem.type,
-      url: fileItem.url,
-      upload_file_id: fileItem.fileId,
-    })))
-    if (!files.find(item => item.type === TransferMethod.local_file && !item.fileId)) {
-      if (files.length)
-        onClear()
-      if (!isResponding)
-        setQuery('')
+    const fileUploaderElement = document.querySelector('[data-file-uploader-wrapper]')
+    if (fileUploaderElement) {
+      const event = new Event('send-message')
+      fileUploaderElement.dispatchEvent(event)
+      console.log('send-message event triggered')
+    } else {
+      if (isResponding) {
+        notify({ type: 'info', message: t('appDebug.errorMessage.waitForResponse') })
+        return
+      }
+
+      if (!query || !query.trim()) {
+        notify({ type: 'info', message: t('appAnnotation.errorMessage.queryRequired') })
+        return
+      }
+      onSend(query)
+      setQuery('')
+      setIsUserInteraction(false)
     }
   }
 
@@ -184,7 +283,7 @@ const Chat: FC<IChatProps> = ({
 
   // 添加自动聚焦效果
   useEffect(() => {
-    if (chatList.length === 0 && inputRef.current) {
+    if (inputRef.current) {
       inputRef.current.focus()
     }
   }, [chatList.length])
@@ -229,7 +328,8 @@ const Chat: FC<IChatProps> = ({
                               id={item.id}
                               content={item.content}
                               useCurrentUserAvatar={useCurrentUserAvatar}
-                              imgSrcs={(item.message_files && item.message_files?.length > 0) ? item.message_files.map(item => item.url) : []}
+                              // imgSrcs={(item.message_files && item.message_files?.length > 0) ? item.message_files.map(item => item.url) : []}
+                              message_files={item.message_files}
                             />
                           </div>
                         </div>
@@ -244,119 +344,131 @@ const Chat: FC<IChatProps> = ({
       </div>
 
       {/* 输入区域 */}
-      {!isHideSendInput && (
-        <div className={`flex-shrink-0 w-full px-4 md:px-12 lg:px-24 
+      <FileContextProvider>
+        {!isHideSendInput && (
+          <div className={`flex-shrink-0 w-full pr-8 pl-4 md:pl-12 lg:pl-24 md:pr-16 lg:pr-24
           ${(!isNewChat || chatList.length > 0 || pathname?.startsWith('/ai-plus/'))
-            ? 'sticky bottom-0 z-10 pt-6 pb-2'
-            : 'absolute top-1/4 bottom-0 left-0 right-0'}`}>
-          <div className="max-w-[994px] mx-auto">
-            {(!isNewChat || chatList.length > 0 || pathname?.startsWith('/ai-plus/')) ? null : (
-              <div className="flex justify-center">
-                <img src="/AiHub.png" alt="AiHub" className="w-[300px]" />
-              </div>
-            )}
-
-            {/* 滚动到底部按钮 */}
-            {!isAtBottom && chatList.length > 0 && (
-              <div
-                className="absolute -top-9 left-1/2 transform -translate-x-1/2 z-20 cursor-pointer bg-white border border-gray-200 rounded-full shadow-md p-2 hover:bg-gray-50 flex items-center gap-1"
-                onClick={scrollToBottom}
-              >
-                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                </svg>
-              </div>
-            )}
-
-            <div className="bg-white border-[1.5px] border-gray-200 rounded-xl shadow-lg">
-              <div className="relative">
-                <div className="px-[5.5px] py-[1px]">
-                  <Textarea
-                    ref={inputRef}
-                    className="block w-full px-2 py-[7px] leading-5 min-h-[60px] max-h-[145px] text-sm text-gray-700 outline-none appearance-none resize-none placeholder:text-gray-400"
-                    value={query}
-                    onChange={handleContentChange}
-                    onKeyUp={handleKeyUp}
-                    onKeyDown={handleKeyDown}
-                    placeholder={t('common.operation.pleaseEnter') as string}
-                    autoSize
-                  />
+              ? 'sticky bottom-0 z-10 pt-6 pb-2'
+              : 'absolute top-1/4 bottom-0 left-0 right-0'}`}>
+            <div className="max-w-[994px] mx-auto">
+              {(!isNewChat || chatList.length > 0 || pathname?.startsWith('/ai-plus/')) ? null : (
+                <div className="flex justify-center">
+                  <img src="/AiHub.png" alt="AiHub" className="w-[300px]" />
                 </div>
-              </div>
-
-              <div className="flex items-center justify-between px-2 py-2 min-h-[40px]">
-                <div className="flex items-center gap-2">
-                  <div className='flex items-center'>
-                    {visionConfig?.enabled && (
-                      <>
-                        {/* <div className='absolute bottom-2 left-2 flex items-center'> */}
-                        {/* <ChatImageUploader
-                              settings={visionConfig}
-                              onUpload={onUpload}
-                              disabled={files.length >= visionConfig.number_limits}
-                            /> */}
-                        {/* <div className='mx-1 w-[1px] h-4 bg-black/5' /> */}
-                        {/* <div className='absolute bottom-[6.5px] left-2 flex items-center'> */}
-                        <OnlineSearch
-                          onSend={onSend}
-                          isActive={isOnlineSearch}
-                        />
-                        <div className='mx-1 w-[1px] h-4 bg-black/5' />
-                        <ModelSelecter
-                          onSend={onSend}
-                          initialModel={lastSelectedModel}
-                        />
-                        {/* <div className='mx-1 w-[1px] h-4 bg-black/5' /> */}
-                        <ImageList
-                          list={files}
-                          onRemove={onRemove}
-                          onReUpload={onReUpload}
-                          onImageLinkLoadSuccess={onImageLinkLoadSuccess}
-                          onImageLinkLoadError={onImageLinkLoadError}
-                        />
-                      </>
-                    )}
+              )}
+              {/* 文件列表区域 */}
+              {visionConfig?.enabled && (
+                <div className="w-full">
+                  <div className="flex justify-start">
+                    <FileListInChatInput fileConfig={visionConfig} />
                   </div>
                 </div>
-                <div className="flex items-center h-8">
-                  {/* <div className={`${s.count} mr-4 h-5 leading-5 text-sm bg-gray-50 text-gray-500`}>{query.trim().length}</div> */}
-                  {/* {visionConfig?.enabled && (
+              )}
+              {/* 滚动到底部按钮 */}
+              {!isAtBottom && chatList.length > 0 && (
+                <div
+                  className="absolute -top-9 left-1/2 transform -translate-x-1/2 z-20 cursor-pointer bg-white border border-gray-200 rounded-full shadow-md p-2 hover:bg-gray-50 flex items-center gap-1"
+                  onClick={scrollToBottom}
+                >
+                  <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                  </svg>
+                </div>
+              )}
+
+              <div className="bg-white border-[1.5px] border-gray-200 rounded-xl shadow-lg">
+                <div className="relative">
+                  <div className="px-[5.5px] py-[1px]">
+                    <Textarea
+                      ref={inputRef}
+                      className="block w-full px-2 py-[7px] leading-5 min-h-[60px] max-h-[145px] text-sm text-gray-700 outline-none appearance-none resize-none placeholder:text-gray-400"
+                      value={query}
+                      onChange={handleContentChange}
+                      onKeyUp={handleKeyUp}
+                      onKeyDown={handleKeyDown}
+                      placeholder={t('common.operation.pleaseEnter') as string}
+                      autoSize
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between px-2 py-2 min-h-[40px]">
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center">
+                      {['general'].includes(AI_PLUS_CONFIGS[storedAppId as keyof typeof AI_PLUS_CONFIGS]?.appName) && (
+                        <>
+                          <OnlineSearch
+                            isActive={isOnlineSearch}
+                            setCommandTags={setCommandTags}
+                            setIsUserInteraction={setIsUserInteraction}
+                          />
+                          <div className='mx-1 w-[1px] h-4 bg-black/5' />
+                          <ModelSelecter
+                            initialModel={lastSelectedModel}
+                            setCommandTags={setCommandTags}
+                            setIsUserInteraction={setIsUserInteraction}
+                          />
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center h-8">
+                    {/* {visionConfig?.enabled && (
                     <ChatImageUploader
                       settings={visionConfig}
                       onUpload={onUpload}
                       disabled={files.length >= visionConfig.number_limits}
                     />
                   )} */}
-                  <Tooltip
-                    selector="send-tip"
-                    htmlContent={
-                      <div>
-                        {query.trim().length > 0 ? (!isResponding ? (
-                          <>
-                            <div>{t('common.operation.send')} Enter</div>
-                            <div>{t('common.operation.lineBreak')} Shift Enter</div>
-                          </>
-                        ) : (
-                          <div>{t('common.operation.stop')}</div>
-                        )) : (!isResponding ? (
-                          <div>{t('common.operation.pleaseEnter')}</div>
-                        ) : (
-                          <div>{t('common.operation.stop')}</div>
-                        ))}
-                      </div>
-                    }
-                  >
-                    <div
-                      className={`${s.sendBtn} w-8 h-8 cursor-pointer rounded-full border border-gray-200 ${showStopBtn ? s.stopBtn : query.trim().length > 0 ? s.active : ''}`}
-                      onClick={showStopBtn ? onStopResponding : handleSend}
-                    />
-                  </Tooltip>
+                    {visionConfig?.enabled && (
+                      //   <>
+                      //   <div className='mx-1 w-[1px] h-4 bg-black/5' />
+                      //   <ImageList
+                      //     list={files}
+                      //     onRemove={onRemove}
+                      //     onReUpload={onReUpload}
+                      //     onImageLinkLoadSuccess={onImageLinkLoadSuccess}
+                      //     onImageLinkLoadError={onImageLinkLoadError}
+                      //   />
+                      // </>
+                      <>
+                        <div data-file-uploader-wrapper>
+                          <FileUploaderWrapper />
+                        </div>
+                        <div className='mr-2 ml-1 w-[1px] h-4 bg-black/5' />
+                      </>
+                    )}
+                    <Tooltip
+                      selector="send-tip"
+                      htmlContent={
+                        <div>
+                          {query.trim().length > 0 ? (!isResponding ? (
+                            <>
+                              <div>{t('common.operation.send')} Enter</div>
+                              <div>{t('common.operation.lineBreak')} Shift Enter</div>
+                            </>
+                          ) : (
+                            <div>{t('common.operation.stop')}</div>
+                          )) : (!isResponding ? (
+                            <div>{t('common.operation.pleaseEnter')}</div>
+                          ) : (
+                            <div>{t('common.operation.stop')}</div>
+                          ))}
+                        </div>
+                      }
+                    >
+                      <div
+                        className={`${s.sendBtn} w-8 h-8 cursor-pointer rounded-full border border-gray-200 ${showStopBtn ? s.stopBtn : query.trim().length > 0 ? s.active : ''}`}
+                        onClick={showStopBtn ? onStopResponding : handleSend}
+                      />
+                    </Tooltip>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </FileContextProvider>
     </div>
   )
 }

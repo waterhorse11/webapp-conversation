@@ -114,7 +114,7 @@ const Sidebar: FC<ISidebarProps> = ({
 
   const handleConversationClick = (id: string) => {
     if (id === '-1') {
-      router.push(`/chat/new`, { scroll: false })
+      router.push(`/`, { scroll: false })
     } else {
       router.push(`/chat/${id}`, { scroll: false })
 
@@ -152,7 +152,7 @@ const Sidebar: FC<ISidebarProps> = ({
   // 监听路由变化设置 selectedAppId
   useEffect(() => {
     if (!pathname) return;
-    if (pathname === '/chat/new' || pathname === '/') {
+    if (pathname === '/') {
       setSelectedAppId('0')
       setIsAiPlusActive(false)
     } else if (pathname === '/ai-plus') {
@@ -189,7 +189,7 @@ const Sidebar: FC<ISidebarProps> = ({
             <Button
               type="custom"
               onClick={() => {
-                router.push(`/chat/new`, { scroll: false })
+                router.push(`/`, { scroll: false })
               }}
               className="group block w-full flex-shrink-0 !justify-start !h-11 !pl-2 !text-black text-sm bg-white hover:bg-white !hover:shadow-lg hover:border-gray-300 items-center border-solid border border-gray-200 rounded-xl">
               <svg xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" className="mr-2 h-5 w-5" width="20" height="20" viewBox="0 0 1024 1024">
@@ -332,7 +332,7 @@ const Sidebar: FC<ISidebarProps> = ({
               </div>
               <nav className="mt-4 flex-1 space-y-1 pl-4">
                 <div className="max-h-[calc(100vh-20rem)] overflow-y-auto">
-                  {list.slice(0, showAllConversations ? undefined : 7).map((item) => {
+                  {list.slice(0, showAllConversations ? undefined : 6).map((item) => {
                     const isCurrent = item.id === currentId
                     const ItemIcon
                       = isCurrent ? ChatBubbleOvalLeftEllipsisSolidIcon : ChatBubbleOvalLeftEllipsisIcon
@@ -431,7 +431,7 @@ const Sidebar: FC<ISidebarProps> = ({
                     )
                   })}
                 </div>
-                {list.length >= 6 && (
+                {list.length > 6 && (
                   <div
                     className="flex items-center justify-center py-2 text-sm text-gray-500 hover:text-gray-700 cursor-pointer"
                     onClick={() => setShowAllConversations(!showAllConversations)}

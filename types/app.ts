@@ -1,7 +1,7 @@
 import type { Annotation } from './log'
 import type { Locale } from '@/i18n'
 import type { ThoughtItem } from '@/app/components/chat/type'
-
+import type { FileEntity } from '@/app/components/base/file-uploader/types'
 export type PromptVariable = {
   key: string
   name: string
@@ -84,7 +84,8 @@ export type IChatItem = {
   suggestedQuestions?: string[]
   log?: { role: string; text: string }[]
   agent_thoughts?: ThoughtItem[]
-  message_files?: VisionFile[]
+  // message_files?: VisionFile[]
+  message_files?: FileEntity[]
 }
 
 export type ChatItem = IChatItem & {
@@ -120,6 +121,20 @@ export enum TransferMethod {
   all = 'all',
   local_file = 'local_file',
   remote_url = 'remote_url',
+}
+
+export enum TtsAutoPlay {
+  enabled = 'enabled',
+  disabled = 'disabled',
+}
+
+export type FileUploadConfigResponse = {
+  batch_count_limit: number
+  image_file_size_limit?: number | string // default is 10MB
+  file_size_limit: number // default is 15MB
+  audio_file_size_limit?: number // default is 50MB
+  video_file_size_limit?: number // default is 100MB
+  workflow_file_upload_limit?: number // default is 10
 }
 
 export type VisionSettings = {
@@ -164,6 +179,27 @@ export enum BlockEnum {
   VariableAssigner = 'variable-assigner',
   Tool = 'tool',
 }
+
+export enum SupportUploadFileTypes {
+  image = 'image',
+  document = 'document',
+  audio = 'audio',
+  video = 'video',
+  custom = 'custom',
+}
+
+export type FileResponse = {
+  related_id: string
+  extension: string
+  filename: string
+  size: number
+  mime_type: string
+  transfer_method: TransferMethod
+  type: string
+  url: string
+}
+
+export type ValueSelector = string[] // [nodeId, key | obj key path]
 
 export type NodeTracing = {
   id: string

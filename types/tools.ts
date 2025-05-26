@@ -106,3 +106,8 @@ export type CustomParamSchema = {
   method: string
   parameters: ParamItem[]
 }
+
+export type CommandTagsParams = {
+  model_name?: string
+  online_search?: boolean
+} 

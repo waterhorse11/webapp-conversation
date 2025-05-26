@@ -4,6 +4,7 @@ import RemarkMath from 'remark-math'
 import RemarkBreaks from 'remark-breaks'
 import RehypeKatex from 'rehype-katex'
 import RemarkGfm from 'remark-gfm'
+import RehypeRaw from 'rehype-raw'
 import SyntaxHighlighter from 'react-syntax-highlighter'
 import { atelierHeathLight } from 'react-syntax-highlighter/dist/esm/styles/hljs'
 import { useTranslation } from 'react-i18next'
@@ -11,6 +12,29 @@ import { useState, useEffect, useRef } from 'react'
 import { DocumentDuplicateIcon } from '@heroicons/react/24/outline'
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline'
 import { LightBulbIcon } from '@heroicons/react/24/outline'
+import { flow } from 'lodash-es'
+
+const preprocessLaTeX = (content: string) => {
+  if (typeof content !== 'string')
+    return content
+
+  const codeBlockRegex = /```[\s\S]*?```/g
+  const codeBlocks = content.match(codeBlockRegex) || []
+  let processedContent = content.replace(codeBlockRegex, 'CODE_BLOCK_PLACEHOLDER')
+
+  processedContent = flow([
+    (str: string) => str.replace(/\\\[(.*?)\\\]/g, (_, equation) => `$$${equation}$$`),
+    (str: string) => str.replace(/\\\[([\s\S]*?)\\\]/g, (_, equation) => `$$${equation}$$`),
+    (str: string) => str.replace(/\\\((.*?)\\\)/g, (_, equation) => `$$${equation}$$`),
+    (str: string) => str.replace(/(^|[^\\])\$(.+?)\$/g, (_, prefix, equation) => `${prefix}$${equation}$`),
+  ])(processedContent)
+
+  codeBlocks.forEach((block) => {
+    processedContent = processedContent.replace('CODE_BLOCK_PLACEHOLDER', block)
+  })
+
+  return processedContent
+}
 
 export function Markdown(props: { content: string; isStreaming?: boolean }) {
   const { t } = useTranslation()
@@ -56,6 +80,8 @@ export function Markdown(props: { content: string; isStreaming?: boolean }) {
   // 检查内容中是否包含引用块
   const hasQuoteContent = props.content.includes('> \n\n\n')
 
+  const processedContent = preprocessLaTeX(props.content)
+
   return (
     <div className="markdown-body relative">
       {(hasQuotes || props.isStreaming) && (
@@ -79,9 +105,18 @@ export function Markdown(props: { content: string; isStreaming?: boolean }) {
         </div>
       )}
       <ReactMarkdown
-        remarkPlugins={[RemarkMath, RemarkGfm, RemarkBreaks]}
+        remarkPlugins={[
+          RemarkGfm,
+          [RemarkMath, { singleDollarTextMath: false }],
+          RemarkBreaks,
+        ]}
         rehypePlugins={[
-          RehypeKatex,
+          [RehypeKatex, {
+            strict: false,
+            throwOnError: false,
+            trust: true
+          }],
+          RehypeRaw as any
         ]}
         components={{
           code({ node, inline, className, children, ...props }) {
@@ -151,7 +186,7 @@ export function Markdown(props: { content: string; isStreaming?: boolean }) {
         }}
         linkTarget={'_blank'}
       >
-        {props.content}
+        {processedContent}
       </ReactMarkdown>
     </div>
   )

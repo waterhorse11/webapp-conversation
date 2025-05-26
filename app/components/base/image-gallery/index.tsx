@@ -104,24 +104,3 @@ const ImageGallery: FC<Props> = ({
 // }
 
 export default React.memo(ImageGallery)
-
-export const ImageGalleryTest = () => {
-  const imgGallerySrcs = (() => {
-    const srcs = []
-    for (let i = 0; i < 6; i++)
-      // srcs.push('https://placekitten.com/640/360')
-      // srcs.push('https://placekitten.com/360/640')
-      srcs.push('https://placekitten.com/360/360')
-
-    return srcs
-  })()
-  return (
-    <div className='space-y-2'>
-      {imgGallerySrcs.map((_, index) => (
-        <div key={index} className='p-4 pb-2 rounded-lg bg-[#D1E9FF80]'>
-          <ImageGallery srcs={imgGallerySrcs.slice(0, index + 1)} />
-        </div>
-      ))}
-    </div>
-  )
-}

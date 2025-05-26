@@ -18,15 +18,22 @@ export const APP_INFO: AppInfo = {
 
 // AI Plus
 // AI+ 应用配置映射
-export const AI_PLUS_CONFIGS: Record<string, { appId: string; apiKey: string }> = {
+export const AI_PLUS_CONFIGS: Record<string, { appName: string; appId: string; apiKey: string }> = {
   '43192a18-2b15-451e-9aec-37d55d5673db': {
+    appName: 'general',
     appId: process.env.NEXT_PUBLIC_APP_ID || '',
     apiKey: process.env.NEXT_PUBLIC_APP_KEY || ''
   },
   'fff43c71-e05d-40d0-b533-e1c9a4df1c5a': {
+    appName: 'zh2en',
     appId: process.env.NEXT_PUBLIC_AI_PLUS_ZH2EN_ID || '',
     apiKey: process.env.NEXT_PUBLIC_AI_PLUS_ZH2EN_KEY || ''
-  }
+  },
+  'f03012f1-1b9f-4383-9ac7-99d7cc5a23ce': {
+    appName: 'pdf-translator',
+    appId: process.env.NEXT_PUBLIC_AI_PLUS_PDF_TRANSLATOR_ID || '',
+    apiKey: process.env.NEXT_PUBLIC_AI_PLUS_PDF_TRANSLATOR_KEY || ''
+  },
   // 可以继续添加其他应用的配置
 }
 

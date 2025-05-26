@@ -16,6 +16,5 @@ export async function POST(request: NextRequest, { params }: {
 
   // auto generate name
   const { data } = await clients[appId].renameConversation(conversationId, name, user, auto_generate)
-  console.log(data)
   return NextResponse.json(data)
 }

@@ -59,41 +59,12 @@
 
 <!-- 先获取配置，再初始化应用 -->
 <script>
-  // 获取配置
-  fetch('/api/ppt/config')
-    .then(res => {
-      if (!res.ok) {
-        throw new Error('Failed to fetch config');
-      }
-      return res.json();
-    })
-    .then(config => {
-      if (!config.apiKey) {
-        throw new Error('API Key not found in config');
-      }
-      window.ENV_DOCMEE_API_KEY = config.apiKey;
-      initApp();
-    })
-    .catch(error => {
-      console.error('Error fetching config:', error);
-      alert('配置加载失败，请检查环境变量设置');
-    });
+  initApp();
 
   function initApp() {
-    if (location.protocol == 'file:') {
-      alert('不支持 file 协议直接访问，请启动 http 服务访问！\n\n启动命令：npm run start')
-    }
-
-    const apiKey = window.ENV_DOCMEE_API_KEY;
-
-    if (!apiKey) {
-      console.error('未配置 DOCMEE_API_KEY 环境变量')
-      alert('请配置 DOCMEE API KEY')
-      return;
-    }
 
     // 修改createApiToken函数
-    async function createApiToken(apiKey, uid, limit) {
+    async function createApiToken(uid, limit) {
       try {
         const response = await fetch('/api/ppt/token', {
           method: 'POST',
@@ -119,7 +90,7 @@
     async function initDocmeeUI() {
       var uid = 'xxx'
       var limit = null
-      var token = await createApiToken(apiKey, uid, limit)
+      var token = await createApiToken(uid, limit)
 
       if (!token) {
         console.error('Failed to create token');
@@ -142,7 +113,7 @@
             // 在token失效时触发
             console.log('token 认证错误')
             // 更换新的 token
-            let newToken = createApiToken(apiKey, uid, limit)
+            let newToken = createApiToken(uid, limit)
             docmeeUI.updateToken(newToken)
           } else if (message.type === 'beforeGenerate') {
             const { subtype, fields } = message.data

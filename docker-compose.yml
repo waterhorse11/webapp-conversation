@@ -8,4 +8,11 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - VITE_DOCMEE_API_KEY=ak_RKnveK5T6335pibWpa
+  mcp_server:
+    build: ./scripts/PDFMathTranslate
+    container_name: mcp_server-v0.1
+    restart: always
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./scripts/PDFMathTranslate:/app

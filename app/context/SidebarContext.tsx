@@ -24,6 +24,8 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
     const [list, setList] = useState<any[]>([])
     const [showTogglePinApp, setShowTogglePinApp] = useState<string | null>(null)
 
+    const DELETED_CONVERSATIONS_KEY = 'deleted_conversations'
+
     const handleSidebarVisibility = useCallback(() => {
         setIsShowSidebar(!isShowSidebar)
     }, [isShowSidebar])
@@ -49,11 +51,22 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
         throw new Error('Rename operation should be implemented by parent component')
     }, [])
 
+    const getDeletedConversations = (): string[] => {
+        try {
+            return JSON.parse(localStorage.getItem(DELETED_CONVERSATIONS_KEY) || '[]')
+        } catch {
+            return []
+        }
+    }
+
     const onDeleteConversation = useCallback((id: string) => {
         setList(prevList => prevList.filter(item => item.id !== id))
         if (currentId === id) {
             setCurrentId('-1')
         }
+        const deletedIds = getDeletedConversations()
+        deletedIds.push(id)
+        localStorage.setItem(DELETED_CONVERSATIONS_KEY, JSON.stringify(deletedIds))
     }, [currentId])
 
     return (

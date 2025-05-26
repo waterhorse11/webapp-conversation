@@ -26,6 +26,13 @@ export const APPS: AppItem[] = [
         title: '中英互译',
         description: '一键中英文互译',
         href: '/ai-plus/fff43c71-e05d-40d0-b533-e1c9a4df1c5a'
+    },
+    {
+        id: '3',
+        icon: '/pdf-tanslator.png',
+        title: 'PDF文档翻译',
+        description: '上传PDF文档，并告知要翻译的语言，一键发送即可翻译',
+        href: '/ai-plus/f03012f1-1b9f-4383-9ac7-99d7cc5a23ce'
     }
 ]
 
@@ -40,7 +47,7 @@ export const APP_GROUPS: AppGroup[] = [
     },
     {
         title: '办公提效',
-        apps: [APPS[0]]
+        apps: [APPS[0], APPS[2]]
     },
     {
         title: '辅助写作',

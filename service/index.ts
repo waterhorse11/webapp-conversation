@@ -58,11 +58,10 @@ export const updateFeedback = async ({ url, body }: { url: string; body: Feedbac
 }
 
 export const generationConversationName = async (id: string, name?: string) => {
-  console.log('generationConversationName', id, name)
   return post(`conversations/${id}/name`, {
     body: {
       auto_generate: false, // 如果提供了name就不自动生成
-      name: name || ''
+      name: name || 'new conversation'
     }
   })
 }
@@ -82,3 +81,5 @@ export const stopChatMessageResponding = async (taskId: string) => {
     }
   })
 }
+
+

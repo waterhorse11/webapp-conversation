@@ -25,6 +25,13 @@ import { addFileInfos, sortAgentSorts } from '@/utils/tools'
 import Tooltip from '@/app/components/base/tooltip'
 import { useRouter, usePathname } from 'next/navigation'
 import { useSidebar } from '@/app/context/SidebarContext'
+import type { CommandTagsParams } from '@/types/tools'
+import type { FileEntity } from '@/app/components/base/file-uploader/types'
+import { API_URL } from '@/config'
+import {
+  getProcessedFiles,
+  getProcessedFilesFromResponse,
+} from '@/app/components/base/file-uploader/utils'
 
 export type IMainProps = {
   params?: any
@@ -120,6 +127,43 @@ const Main: FC<IMainProps> = ({
       document.title = `${APP_INFO.title}`
   }, [APP_INFO?.title])
 
+  const [commandTags, setCommandTags] = useState<string>('')
+
+  const handleSetCommandTags = (params: CommandTagsParams) => {
+    try {
+      // 从现有的 commandTags 中提取 JSON 字符串
+      const jsonMatch = commandTags.match(/<command>(.*?)<\/command>/);
+      let commandObj = {};
+
+      if (jsonMatch && jsonMatch[1]) {
+        // 解析现有的 JSON
+        commandObj = JSON.parse(jsonMatch[1]);
+      }
+
+      // 合并新的参数
+      commandObj = {
+        ...commandObj,
+        ...params,
+        // 确保 online_search 是字符串类型
+        ...(params.online_search !== undefined && { online_search: String(params.online_search) })
+      };
+
+      // 重新构建 command 标签字符串
+      const newCommandTags = `<command>${JSON.stringify(commandObj)}</command>`;
+      setCommandTags(newCommandTags);
+
+      // 更新相关状态
+      if (params.model_name) {
+        setLastSelectedModel(params.model_name);
+      }
+      if (params.online_search !== undefined) {
+        setIsOnlineSearch(params.online_search);
+      }
+    } catch (error) {
+      console.error('Failed to update command tags:', error);
+    }
+  }
+
   // onData change thought (the produce obj). https://github.com/immerjs/immer/issues/576
   useEffect(() => {
     setAutoFreeze(false)
@@ -204,26 +248,27 @@ const Main: FC<IMainProps> = ({
         const newChatList: ChatItem[] = generateNewChatListWithOpenStatement(notSyncToStateIntroduction, notSyncToStateInputs)
 
         data.forEach((item: any) => {
-          // 过滤掉模型选择消息和联网搜索消息
-          if (item.query.startsWith('model_name=') ||
-            item.query.startsWith('online_search=') ||
-            item.query === 'status:selected model')
-            return
-
+          const cleanQuery = removeCommandTags(item.query)
+          const cleanAnswer = removeAnswerTag(item.answer)
+          // item.message_files.forEach((file: any) => {
+          //   file.url = API_URL.replace('/v1', '') + file.url
+          // })
+          const questionFiles = item.message_files?.filter((file: any) => file.belongs_to === 'user') || []
           newChatList.push({
             id: `question-${item.id}`,
-            content: item.query,
+            content: cleanQuery,
             isAnswer: false,
-            message_files: item.message_files?.filter((file: any) => file.belongs_to === 'user') || [],
-
+            message_files: getProcessedFilesFromResponse(questionFiles.map((item: any) => ({ ...item, related_id: item.id }))),
           })
+
+          const answerFiles = item.message_files?.filter((file: any) => file.belongs_to === 'assistant') || []
           newChatList.push({
             id: item.id,
-            content: item.answer,
-            agent_thoughts: addFileInfos(item.agent_thoughts ? sortAgentSorts(item.agent_thoughts) : item.agent_thoughts, item.message_files),
+            content: cleanAnswer,
+            agent_thoughts: addFileInfos(item.agent_thoughts ? sortAgentSorts(item.agent_thoughts) : item.agent_thoughts, answerFiles),
             feedback: item.feedback,
             isAnswer: true,
-            message_files: item.message_files?.filter((file: any) => file.belongs_to === 'assistant') || [],
+            message_files: getProcessedFilesFromResponse(answerFiles.map((item: any) => ({ ...item, related_id: item.id }))),
           })
         })
         setChatList(newChatList)
@@ -346,12 +391,20 @@ const Main: FC<IMainProps> = ({
           prompt_template: promptTemplate,
           prompt_variables,
         } as PromptConfig)
+        // setVisionConfig({
+        //   enabled: file_upload?.allowed_file_types.includes('image') && !!file_upload?.enabled,
+        //   number_limits: 2,
+        //   detail: Resolution.low,
+        //   transfer_methods: [TransferMethod.local_file],
+        //   image_file_size_limit: system_parameters?.system_parameters || 0,
+        // })
         setVisionConfig({
-          enabled: file_upload?.allowed_file_types.includes('image') && !!file_upload?.enabled,
-          number_limits: 2,
-          detail: Resolution.low,
-          transfer_methods: [TransferMethod.local_file],
-          image_file_size_limit: system_parameters?.system_parameters || 0,
+          // legacy of image upload compatible
+          ...file_upload,
+          transfer_methods: file_upload.allowed_file_upload_methods || file_upload.allowed_upload_methods,
+          // legacy of image upload compatible
+          image_file_size_limit: system_parameters?.image_file_size_limit,
+          fileUploadConfig: system_parameters,
         })
         setConversationList(filteredConversations)
         updateSidebarList(filteredConversations)
@@ -460,63 +513,32 @@ const Main: FC<IMainProps> = ({
     setChatList(newListWithAnswer)
   }
 
-  const handleSend = async (message: string, files?: VisionFile[]) => {
+  // 添加处理 command 标签的函数
+  const removeCommandTags = (content: string) => {
+    return content.replace(/<command>.*?<\/command>/g, '')
+  }
+
+  const removeAnswerTag = (content: string) => {
+    return content.replace(/<answerTag>.*?<\/answerTag>/g, '')
+  }
+
+  const handleSend = async (message: string, files?: FileEntity[]) => {
     if (isResponding) {
       notify({ type: 'info', message: t('app.errorMessage.waitForResponse') })
       return
     }
 
-    // 如果是模型选择消息，直接发送但不显示在聊天界面
-    if (message.startsWith('model_name=') || message.startsWith('online_search=')) {
-      const data: Record<string, any> = {
-        inputs: currInputs,
-        query: message,
-        conversation_id: isNewConversation ? null : currConversationId,
-      }
 
-      setRespondingTrue()
-      try {
-        await sendChatMessage(data, {
-          getAbortController: (abortController) => {
-            setAbortController(abortController)
-          },
-          onData: (message: string, isFirstMessage: boolean, { conversationId: newConversationId }) => {
-            if (isNewConversation && newConversationId) {
-              setCurrConversationId(newConversationId, APP_ID, true)
-              setConversationIdChangeBecauseOfNew(true)
-            }
-          },
-          onCompleted: () => {
-            setRespondingFalse()
-            setConversationIdChangeBecauseOfNew(true)
-            setRespondingFalse()
-          },
-          onError: (error) => {
-            setRespondingFalse()
-          },
-          onFile: () => { },
-          onThought: () => { },
-          onMessageEnd: () => { },
-          onMessageReplace: () => { },
-          onWorkflowStarted: () => { },
-          onNodeStarted: () => { },
-          onNodeFinished: () => { },
-          onWorkflowFinished: () => { },
-        })
-      } catch (error) {
-        setRespondingFalse()
-      }
-      return
-    }
 
     const data: Record<string, any> = {
       inputs: currInputs,
       query: message,
       conversation_id: isNewConversation ? null : currConversationId,
     }
-
+    console.log('files', files)
     if (visionConfig?.enabled && files && files?.length > 0) {
-      data.files = files.map((item) => {
+      const ProcessedFiles = getProcessedFiles(files)
+      data.files = ProcessedFiles.map((item) => {
         if (item.transfer_method === TransferMethod.local_file) {
           return {
             ...item,
@@ -526,12 +548,12 @@ const Main: FC<IMainProps> = ({
         return item
       })
     }
-
+    console.log('data.Files', data.files)
     // question
     const questionId = `question-${Date.now()}`
     const questionItem = {
       id: questionId,
-      content: message,
+      content: removeCommandTags(message), // 使用处理后的消息内容
       isAnswer: false,
       message_files: files,
     }
@@ -569,7 +591,7 @@ const Main: FC<IMainProps> = ({
         },
         onData: (message: string, isFirstMessage: boolean, { conversationId: newConversationId, messageId, taskId }: any) => {
           if (!isAgentMode) {
-            responseItem.content = responseItem.content + message
+            responseItem.content = responseItem.content + removeAnswerTag(message)
           }
           else {
             const lastThought = responseItem.agent_thoughts?.[responseItem.agent_thoughts?.length - 1]
@@ -584,6 +606,7 @@ const Main: FC<IMainProps> = ({
           if (isFirstMessage && newConversationId) {
             tempNewConversationId = newConversationId
             history.pushState(null, '', `/chat/${tempNewConversationId}`)
+            updateConversationName(tempNewConversationId)
           }
 
           setMessageTaskId(taskId)
@@ -615,6 +638,14 @@ const Main: FC<IMainProps> = ({
           setChatNotStarted()
           setCurrConversationId(tempNewConversationId, APP_ID, true)
           setRespondingFalse()
+
+          responseItem.content = removeAnswerTag(responseItem.content)
+          updateCurrentQA({
+            responseItem,
+            questionId,
+            placeholderAnswerId,
+            questionItem,
+          })
         },
         onError: (error) => {
           setRespondingFalse()
@@ -798,34 +829,118 @@ const Main: FC<IMainProps> = ({
     if (!isNewConversation && currConversationId) {
       fetchChatList(currConversationId).then((res: any) => {
         const { data } = res
-        // 找到最后一条模型选择消息
-        const lastModelMessage = [...data].reverse().find((item: any) =>
-          item.query.startsWith('model_name=')
-        )
+        // 反转数组以便从最新消息开始查找
+        const messages = [...data].reverse()
+
+        // 查找最后一条包含模型选择的消息
+        const lastModelMessage = messages.find((item: any) => {
+          const match = item.query.match(/<command>(.*?)<\/command>/);
+          if (!match) return false;
+          try {
+            const commandObj = JSON.parse(match[1]);
+            return commandObj.model_name !== undefined;
+          } catch (e) {
+            return false;
+          }
+        });
+
+        // 查找最后一条包含联网搜索的消息
+        const lastSearchMessage = messages.find((item: any) => {
+          const match = item.query.match(/<command>(.*?)<\/command>/);
+          if (!match) return false;
+          try {
+            const commandObj = JSON.parse(match[1]);
+            return commandObj.online_search !== undefined;
+          } catch (e) {
+            return false;
+          }
+        });
+
+        const lastAnswerTagMessage = messages.find((item: any) => {
+          const match = item.query.match(/<answerTag>(.*?)<\/answerTag>/);
+          if (!match) return false;
+          try {
+            const answerTagObj = JSON.parse(match[1]);
+            return answerTagObj.model_name !== undefined;
+          } catch (e) {
+            return false;
+          }
+        });
+
+        // 设置模型
         if (lastModelMessage) {
-          const modelName = lastModelMessage.query.replace('model_name=', '')
-          setLastSelectedModel(modelName)
-        }
-        else {
-          setLastSelectedModel('deepseek-v3')
+          const match = lastModelMessage.query.match(/<command>(.*?)<\/command>/);
+          if (match) {
+            try {
+              const commandObj = JSON.parse(match[1]);
+              if (commandObj.model_name) {
+                setLastSelectedModel(commandObj.model_name);
+              } else {
+                setLastSelectedModel('deepseek-v3');
+              }
+            } catch (e) {
+              console.error('Failed to parse model command:', e);
+              setLastSelectedModel('deepseek-v3');
+            }
+          }
+        } else {
+          setLastSelectedModel('deepseek-v3');
         }
 
-        // 找到最后一条联网搜索消息
-        const lastSearchMessage = [...data].reverse().find((item: any) =>
-          item.query.startsWith('online_search=')
-        )
+        // 设置联网搜索
         if (lastSearchMessage) {
-          const isOnline = lastSearchMessage.query.replace('online_search=', '') === 'true'
-          setIsOnlineSearch(isOnline)
+          const match = lastSearchMessage.query.match(/<command>(.*?)<\/command>/);
+          if (match) {
+            try {
+              const commandObj = JSON.parse(match[1]);
+              if (commandObj.online_search !== undefined) {
+                setIsOnlineSearch(commandObj.online_search === 'true');
+              } else {
+                setIsOnlineSearch(false);
+              }
+            } catch (e) {
+              console.error('Failed to parse search command:', e);
+              setIsOnlineSearch(false);
+            }
+          }
+        } else {
+          setIsOnlineSearch(false);
         }
-        else {
-          setIsOnlineSearch(false)
+
+        if (lastAnswerTagMessage && (!lastModelMessage || !lastSearchMessage)) {
+          if (lastAnswerTagMessage) {
+            const match = lastAnswerTagMessage.query.match(/<answerTag>(.*?)<\/answerTag>/);
+            if (match) {
+              try {
+                const answerTagObj = JSON.parse(match[1]);
+                // 设置模型
+                if (answerTagObj.model_name) {
+                  setLastSelectedModel(answerTagObj.model_name);
+                } else {
+                  setLastSelectedModel('deepseek-v3');
+                }
+                // 设置联网搜索
+                if (answerTagObj.online_search !== undefined) {
+                  setIsOnlineSearch(answerTagObj.online_search === 'true');
+                } else {
+                  setIsOnlineSearch(false);
+                }
+              } catch (e) {
+                console.error('Failed to parse answerTag JSON:', e);
+                setLastSelectedModel('deepseek-v3');
+                setIsOnlineSearch(false);
+              }
+            }
+          } else {
+            // 如果没有找到 answerTag 标签，使用默认值
+            setLastSelectedModel('deepseek-v3');
+            setIsOnlineSearch(false);
+          }
         }
       })
-    }
-    else {
-      setLastSelectedModel('deepseek-v3')
-      setIsOnlineSearch(false)
+    } else {
+      setLastSelectedModel('deepseek-v3');
+      setIsOnlineSearch(false);
     }
   }, [currConversationId, isNewConversation])
 
@@ -833,13 +948,12 @@ const Main: FC<IMainProps> = ({
   const updateConversationName = async (conversationId: string) => {
     try {
       const { data: messages }: any = await fetchChatList(conversationId)
-
       // 找到第一条正常的用户消息，排除模型选择和在线搜索消息
-      const firstUserMessage = messages
-        .find((msg: any) => !msg.query.startsWith('model_name=') && !msg.query.startsWith('online_search='))
+      const firstUserMessage = messages[0]
+      const cleanFirstUserMessage = removeCommandTags(firstUserMessage.query)
 
       if (firstUserMessage) {
-        const title = firstUserMessage.query.slice(0, 12) + (firstUserMessage.query.length >= 12 ? '...' : '')
+        const title = cleanFirstUserMessage.slice(0, 12) + (cleanFirstUserMessage.length >= 12 ? '...' : '')
 
         // 直接使用 generationConversationName
         await generationConversationName(conversationId, title)
@@ -970,6 +1084,8 @@ const Main: FC<IMainProps> = ({
                       lastSelectedModel={lastSelectedModel}
                       onStopResponding={handleStopResponding}
                       isNewChat={isNewChat}
+                      setCommandTags={handleSetCommandTags}
+                      commandTags={commandTags}
                     />
                   )}
                 </div>

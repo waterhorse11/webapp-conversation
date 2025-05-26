@@ -2,10 +2,12 @@
 import type { FC } from 'react'
 import React, { useState, useEffect } from 'react'
 import { Listbox } from '@headlessui/react'
-import { VisionFile } from '@/types/app'
+import type { CommandTagsParams } from '@/types/tools'
+
 export type IModelSelecterProps = {
-    onSend: (message: string, files: VisionFile[]) => void
-    initialModel?: string // 添加初始模型参数
+    setCommandTags?: (params: CommandTagsParams) => void
+    initialModel?: string
+    setIsUserInteraction?: (isUserInteraction: boolean) => void
 }
 
 const modelMap: Record<string, string> = {
@@ -15,8 +17,9 @@ const modelMap: Record<string, string> = {
 } as const
 
 const ModelSelecter: FC<IModelSelecterProps> = ({
-    onSend,
-    initialModel = 'deepseek-v3', // 设置默认值
+    setCommandTags,
+    initialModel = 'deepseek-v3',
+    setIsUserInteraction,
 }) => {
     const [selectedModel, setSelectedModel] = useState<string>(initialModel)
 
@@ -32,7 +35,8 @@ const ModelSelecter: FC<IModelSelecterProps> = ({
         const modelKey = Object.entries(modelMap).find(([_, value]) => value === modelName)?.[0] || ""
         setSelectedModel(modelKey)
         if (modelName) {
-            onSend(`model_name=${modelName}`, [])
+            setCommandTags?.({ model_name: modelName })
+            setIsUserInteraction?.(true)
         }
     }
 

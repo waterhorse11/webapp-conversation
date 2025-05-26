@@ -1,17 +1,19 @@
 'use client'
 import { FC, useState, useEffect } from 'react'
 import Search from '@/app/components/base/icons/line/search'
-import type { VisionFile } from '@/types/app'
+import type { CommandTagsParams } from '@/types/tools'
 import Tooltip from '@/app/components/base/tooltip'
 
 type OnlineSearchProps = {
-    onSend: (message: string, files: VisionFile[]) => void
     isActive?: boolean
+    setCommandTags?: (params: CommandTagsParams) => void
+    setIsUserInteraction?: (isUserInteraction: boolean) => void
 }
 
 const OnlineSearch: FC<OnlineSearchProps> = ({
-    onSend,
     isActive: externalIsActive = false,
+    setCommandTags,
+    setIsUserInteraction,
 }) => {
     const [isActive, setIsActive] = useState(externalIsActive)
 
@@ -23,7 +25,8 @@ const OnlineSearch: FC<OnlineSearchProps> = ({
     const handleClick = () => {
         const newState = !isActive
         setIsActive(newState)
-        onSend(`online_search=${newState}`, [])
+        setCommandTags?.({ online_search: newState })
+        setIsUserInteraction?.(true)
     }
 
     return (

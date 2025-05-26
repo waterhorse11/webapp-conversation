@@ -126,3 +126,157 @@ a {
   background-clip: text;
   text-fill-color: transparent;
 }
+
+/* font define start */
+.system-kbd {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.system-2xs-regular-uppercase {
+  font-size: 10px;
+  font-weight: 400;
+  text-transform: uppercase;
+  line-height: 12px;
+}
+
+.system-2xs-regular {
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 12px;
+}
+
+.system-2xs-medium {
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 12px;
+}
+
+.system-2xs-medium-uppercase {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  line-height: 12px;
+}
+
+.system-2xs-semibold-uppercase {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  line-height: 12px;
+}
+
+.system-xs-regular {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+}
+
+.system-xs-regular-uppercase {
+  font-size: 12px;
+  font-weight: 400;
+  text-transform: uppercase;
+  line-height: 16px;
+}
+
+.system-xs-medium {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.system-xs-medium-uppercase {
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  line-height: 16px;
+}
+
+.system-xs-semibold {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+}
+
+.system-xs-semibold-uppercase {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  line-height: 16px;
+}
+
+.system-sm-regular {
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 16px;
+}
+
+.system-sm-medium {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.system-sm-medium-uppercase {
+  font-size: 13px;
+  font-weight: 500;
+  text-transform: uppercase;
+  line-height: 16px;
+}
+
+.system-sm-semibold {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 16px;
+}
+
+.system-sm-semibold-uppercase {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  line-height: 16px;
+}
+
+.system-md-regular {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+}
+
+.system-md-medium {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.system-md-semibold {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.system-md-semibold-uppercase {
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  line-height: 20px;
+}
+
+.system-xl-regular {
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 24px;
+}
+
+.system-xl-medium {
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+}
+
+.system-xl-semibold {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+}
