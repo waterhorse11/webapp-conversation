@@ -359,18 +359,35 @@ const Main: FC<IMainProps> = ({
     (async () => {
       try {
         const conversationData = await fetchConversations()
-        const appParams = await fetchAppParams()
+        type newConversationItem = ConversationItem & {
+          appId: string;
+          updated_at?: string;
+        }
+        let allAPPConversationData: newConversationItem[] = []
+        const currentConversationData = conversationData as { data: ConversationItem[] }
+        allAPPConversationData = currentConversationData.data.map(item => ({ ...item, appId: APP_ID }) as newConversationItem)
+        if (pathname === '/' || pathname?.startsWith('/chat/')) {
+          for (const appId of Object.keys(AI_PLUS_CONFIGS).filter(item => item !== APP_ID)) {
+            window.localStorage.setItem('x-app-id', AI_PLUS_CONFIGS[appId].appId);
+            const newConversationData = await fetchConversations() as { data: ConversationItem[] }
+            allAPPConversationData.push(...newConversationData.data.map(item => ({ ...item, appId: AI_PLUS_CONFIGS[appId].appId }) as newConversationItem))
+          }
+          window.localStorage.setItem('x-app-id', APP_ID);
+          allAPPConversationData.sort((a, b) => new Date(b.updated_at || '').getTime() - new Date(a.updated_at || '').getTime())
 
+        }
+        const appParams = await fetchAppParams()
         // 获取已删除的会话 ID
         const deletedIds = getDeletedConversations()
 
         // 过滤掉已删除的会话
-        const { data: conversations, error } = conversationData as { data: ConversationItem[]; error: string }
-        const filteredConversations = conversations.filter(conv => !deletedIds.includes(conv.id))
+        // const { data: conversations, error } = conversationData as { data: ConversationItem[]; error: string }
+        // const filteredConversations = conversations.filter(conv => !deletedIds.includes(conv.id))
+        const filteredConversations = allAPPConversationData.filter(conv => !deletedIds.includes(conv.id))
 
         // handle current conversation id
-        const _conversationId = getConversationIdFromStorage(APP_ID)
-        const isNotNewConversation = filteredConversations.some(item => item.id === _conversationId)
+        // const _conversationId = getConversationIdFromStorage(APP_ID)
+        // const isNotNewConversation = filteredConversations.some(item => item.id === _conversationId)
 
         // console.log('appParams', appParams)
 
@@ -1044,11 +1061,11 @@ const Main: FC<IMainProps> = ({
     <div className='fixed inset-0 bg-gray-100'>
       <div className="absolute inset-0 flex">
         {/* sidebar */}
-        {!isMobile && (
+        {/* {!isMobile && (
           <div className={`fixed top-0 bottom-0 left-0 z-50 transition-transform duration-300 ${isShowSidebar ? 'translate-x-0' : '-translate-x-full'}`}>
             {renderSidebar()}
           </div>
-        )}
+        )} */}
         {/* main */}
         <div className={`relative flex-1 flex flex-col min-w-0 pt-[7px] transition-all duration-300 ${!isMobile && isShowSidebar ? 'ml-[240px]' : 'ml-0'}`}>
           <div className={`relative flex-1 flex flex-col min-w-0 bg-white mb-[7px] mr-[7px] rounded-lg ${isShowSidebar ? '' : 'ml-[7px]'}`}>

@@ -24,18 +24,20 @@ import { APP_INFO } from '@/config'
 import { useRouter, usePathname } from 'next/navigation'
 import { useSidebar } from '@/app/context/SidebarContext'
 import { APPS } from '@/config/apps'
-
+import { updateConfig } from '@/config'
 function classNames(...classes: any[]) {
   return classes.filter(Boolean).join(' ')
 }
 
 const MAX_CONVERSATION_LENTH = 20
 
+type ConversationItemWithAppId = ConversationItem & { appId: string }
+
 export type ISidebarProps = {
   copyRight: string
   currentId: string
   onCurrentIdChange: (id: string) => void
-  list: ConversationItem[]
+  list: ConversationItemWithAppId[]
   onPinConversation?: (id: string) => void
   onRenameConversation?: (id: string, name: string) => void
   onDeleteConversation?: (id: string) => void
@@ -66,7 +68,7 @@ const Sidebar: FC<ISidebarProps> = ({
   const [showRenameModal, setShowRenameModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [editingName, setEditingName] = useState('')
-  const [currentItem, setCurrentItem] = useState<ConversationItem | null>(null)
+  const [currentItem, setCurrentItem] = useState<ConversationItemWithAppId | null>(null)
   const [showAllConversations, setShowAllConversations] = useState(false)
   const [menuPosition, setMenuPosition] = useState<{ top: number; right: number } | null>(null);
   const { showTogglePinApp, setShowTogglePinApp } = useSidebar()
@@ -86,13 +88,13 @@ const Sidebar: FC<ISidebarProps> = ({
   const router = useRouter()
   const pathname = usePathname()
 
-  const handleRename = (item: ConversationItem) => {
+  const handleRename = (item: ConversationItemWithAppId) => {
     setCurrentItem(item)
     setEditingName(item.name)
     setShowRenameModal(true)
   }
 
-  const handleDelete = (item: ConversationItem) => {
+  const handleDelete = (item: ConversationItemWithAppId) => {
     setCurrentItem(item)
     setShowDeleteModal(true)
   }
@@ -331,14 +333,18 @@ const Sidebar: FC<ISidebarProps> = ({
                 </div>
               </div>
               <nav className="mt-4 flex-1 space-y-1 pl-4">
-                <div className="max-h-[calc(100vh-20rem)] overflow-y-auto">
+                <div className="max-h-[calc(90vh-20rem)] overflow-y-auto">
                   {list.slice(0, showAllConversations ? undefined : 6).map((item) => {
                     const isCurrent = item.id === currentId
                     const ItemIcon
                       = isCurrent ? ChatBubbleOvalLeftEllipsisSolidIcon : ChatBubbleOvalLeftEllipsisIcon
                     return (
                       <div
-                        onClick={() => handleConversationClick(item.id)}
+                        onClick={async () => {
+                          await updateConfig(item.appId);
+                          window.localStorage.setItem('x-app-id', item.appId)
+                          handleConversationClick(item.id)
+                        }}
                         key={item.id}
                         onMouseLeave={() => setOpenMenuId(null)}
                         className={classNames(

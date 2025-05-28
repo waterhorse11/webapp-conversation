@@ -19,7 +19,7 @@
 import { useEffect, useState } from 'react'
 import Main from '@/app/components'
 import Loading from '@/app/components/base/loading'
-import { AI_PLUS_CONFIGS } from '@/config'
+import { AI_PLUS_CONFIGS, updateConfig } from '@/config'
 
 export default function NewChatPage() {
   const [isConfigReady, setIsConfigReady] = useState(false)
@@ -28,6 +28,7 @@ export default function NewChatPage() {
     const initConfig = async () => {
       try {
         const defaultAppId = Object.values(AI_PLUS_CONFIGS).find(config => config.appName === 'general')?.appId || ''
+        await updateConfig(defaultAppId)
         const storedAppId = window.localStorage.getItem('x-app-id')
 
         if (storedAppId !== defaultAppId) {
