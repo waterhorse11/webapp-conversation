@@ -26,6 +26,33 @@ const translation = {
   variableTable: {
     optional: '可选',
   },
+  apps: {
+    title: '探索AI+',
+    groups: {
+      pinned: '我的置顶',
+      recommended: '官方推荐',
+      office: '办公提效',
+      writing: '辅助写作'
+    },
+    items: {
+      ppt: {
+        title: 'PPT 助手',
+        description: '一键生成PPT'
+      },
+      translate: {
+        title: '中英互译',
+        description: '一键中英文互译'
+      },
+      pdfTranslator: {
+        title: 'PDF文档翻译',
+        description: '上传PDF文档，并告知要翻译的语言，一键发送即可翻译'
+      }
+    },
+    Operations: {
+      newChat: '新建会话',
+      unpin: '移除置顶',
+    }
+  }
 }
 
 export default translation

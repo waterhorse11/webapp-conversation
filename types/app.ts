@@ -1,7 +1,7 @@
 import type { Annotation } from './log'
 import type { Locale } from '@/i18n'
-import type { ThoughtItem } from '@/app/components/chat/type'
-import type { FileEntity } from '@/app/components/base/file-uploader/types'
+import type { ThoughtItem } from '@/components/chat/type'
+import type { FileEntity } from '@/components/base/file-uploader/types'
 export type PromptVariable = {
   key: string
   name: string

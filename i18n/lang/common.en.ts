@@ -8,6 +8,7 @@ const translation = {
     confirm: 'Confirm',
     cancel: 'Cancel',
     clear: 'Clear',
+    delete: 'Delete',
     save: 'Save',
     edit: 'Edit',
     refresh: 'Restart',
@@ -33,6 +34,30 @@ const translation = {
     pasteImageLinkInvalid: 'Invalid image link',
     imageUpload: 'Image Upload',
   },
+  modelSelector: {
+    deepseek: 'DeepSeek',
+    deepseek_thinking: 'DeepSeek-Thinking',
+    doubao: 'DouBao'
+  },
+  onlineSearch: {
+    tooltip: {
+      online: 'Online',
+      offline: 'Connect to get real-time information'
+    },
+    status: {
+      online: 'Online',
+      offline: 'Offline'
+    }
+  },
+  conversation: {
+    history: 'History',
+    pinned: 'Pinned',
+    rename: 'Rename',
+    delete: 'Delete',
+    viewAll: 'View all',
+    collapse: 'Collapse',
+    confirmDelete: 'Are you sure you want to delete this conversation? This action cannot be undone.',
+  }
 }
 
 export default translation

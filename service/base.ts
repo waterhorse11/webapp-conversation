@@ -1,6 +1,6 @@
 import { API_PREFIX } from '@/config'
-import Toast from '@/app/components/base/toast'
-import type { AnnotationReply, MessageEnd, MessageReplace, ThoughtItem } from '@/app/components/chat/type'
+import Toast from '@/components/base/toast'
+import type { AnnotationReply, MessageEnd, MessageReplace, ThoughtItem } from '@/components/chat/type'
 import type { VisionFile } from '@/types/app'
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios'
 

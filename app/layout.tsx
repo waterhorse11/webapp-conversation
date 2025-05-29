@@ -1,9 +1,9 @@
-import './styles/globals.css'
-import './styles/markdown.scss'
+import '@/styles/globals.css'
+import '@/styles/markdown.scss'
 import dynamic from 'next/dynamic'
 
 // 完全禁用SSR，使用客户端渲染
-const ClientRootNoSSR = dynamic(() => import('./components/ClientRoot'), {
+const ClientRootNoSSR = dynamic(() => import('@/components/ClientRoot'), {
   ssr: false,
 })
 
