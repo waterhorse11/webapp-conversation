@@ -213,7 +213,8 @@ const Chat: FC<IChatProps> = ({
         notify({ type: 'info', message: t('appAnnotation.errorMessage.queryRequired') })
         return
       }
-      onSend(query)
+      const entireQuery = isUserInteraction ? `${commandTags}${query}` : query
+      onSend(entireQuery)
       setQuery('')
       setIsUserInteraction(false)
     }
@@ -346,7 +347,7 @@ const Chat: FC<IChatProps> = ({
       {/* 输入区域 */}
       <FileContextProvider>
         {!isHideSendInput && (
-          <div className={`flex-shrink-0 w-full pr-8 pl-4 md:pl-12 lg:pl-24 md:pr-16 lg:pr-24
+          <div className={`flex-shrink-0 w-full pr-8 pl-4 md:pl-12 lg:pl-26 md:pr-16 lg:pr-26
           ${(!isNewChat || chatList.length > 0 || pathname?.startsWith('/ai-plus/'))
               ? 'sticky bottom-0 z-10 pt-6 pb-2'
               : 'absolute top-1/4 bottom-0 left-0 right-0'}`}>

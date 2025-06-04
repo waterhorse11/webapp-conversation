@@ -23,6 +23,10 @@ const translation = {
     pleaseEnter: 'กรุณากรอกคำถามของคุณ',
     openSidebar: 'เปิดด้านข้าง',
     closeSidebar: 'ปิดด้านข้าง',
+    thinking: 'กำลังคิด...',
+    thinkingDone: 'คิดเสร็จแล้ว',
+    thinkingContent: 'ขยายความคิด',
+    thinkingContentCollapse: 'ยกเลิกความคิด',
   },
   imageUploader: {
     uploadFromComputer: 'จากคอมพิวเตอร์',

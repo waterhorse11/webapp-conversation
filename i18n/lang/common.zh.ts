@@ -25,6 +25,10 @@ const translation = {
     pleaseEnter: '请输入你的问题',
     openSidebar: '打开侧边栏',
     closeSidebar: '关闭侧边栏',
+    thinking: '正在思考...',
+    thinkingDone: '已完成思考',
+    thinkingContent: '展开思考内容',
+    thinkingContentCollapse: '收起思考内容',
   },
   imageUploader: {
     uploadFromComputer: '从本地上传',

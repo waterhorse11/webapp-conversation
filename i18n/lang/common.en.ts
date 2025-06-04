@@ -23,6 +23,10 @@ const translation = {
     pleaseEnter: 'Please enter your question',
     openSidebar: 'Open sidebar',
     closeSidebar: 'Close sidebar',
+    thinking: 'Thinking...',
+    thinkingDone: 'Thinking done',
+    thinkingContent: 'Expand thinking content',
+    thinkingContentCollapse: 'Collapse thinking content',
   },
   imageUploader: {
     uploadFromComputer: 'Upload from Computer',

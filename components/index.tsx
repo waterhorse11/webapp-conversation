@@ -49,6 +49,11 @@ const getDeletedConversations = (): string[] => {
   }
 }
 
+type newConversationItem = ConversationItem & {
+  appId: string;
+  updated_at?: string;
+}
+
 const Main: FC<IMainProps> = ({
   params,
   component: Component,
@@ -175,12 +180,6 @@ const Main: FC<IMainProps> = ({
     setExistConversationInfo,
   } = useConversation()
 
-  // 同步 conversationList 到 SidebarContext
-  // useEffect(() => {
-  //   if (conversationList) {
-  //     updateSidebarList(conversationList)
-  //   }
-  // }, [conversationList])
 
   const [conversationIdChangeBecauseOfNew, setConversationIdChangeBecauseOfNew, getConversationIdChangeBecauseOfNew] = useGetState(false)
   const [isChatStarted, { setTrue: setChatStarted, setFalse: setChatNotStarted }] = useBoolean(false)
@@ -233,9 +232,6 @@ const Main: FC<IMainProps> = ({
         data.forEach((item: any) => {
           const cleanQuery = removeCommandTags(item.query)
           const cleanAnswer = removeAnswerTag(item.answer)
-          // item.message_files.forEach((file: any) => {
-          //   file.url = API_URL.replace('/v1', '') + file.url
-          // })
           const questionFiles = item.message_files?.filter((file: any) => file.belongs_to === 'user') || []
           newChatList.push({
             id: `question-${item.id}`,
@@ -258,9 +254,6 @@ const Main: FC<IMainProps> = ({
       })
     }
 
-    // if (isNewConversation && isChatStarted)
-    //   setChatList(generateNewChatListWithOpenStatement())
-    //   console.log('calculatedIntroduction 开始')
   }
   useEffect(handleConversationSwitch, [currConversationId, inited])
 
@@ -342,10 +335,6 @@ const Main: FC<IMainProps> = ({
     (async () => {
       try {
         const conversationData = await fetchConversations()
-        type newConversationItem = ConversationItem & {
-          appId: string;
-          updated_at?: string;
-        }
         let allAPPConversationData: newConversationItem[] = []
         const currentConversationData = conversationData as { data: ConversationItem[] }
         allAPPConversationData = currentConversationData.data.map(item => ({ ...item, appId: APP_ID }) as newConversationItem)
@@ -365,15 +354,7 @@ const Main: FC<IMainProps> = ({
         const deletedIds = getDeletedConversations()
 
         // 过滤掉已删除的会话
-        // const { data: conversations, error } = conversationData as { data: ConversationItem[]; error: string }
-        // const filteredConversations = conversations.filter(conv => !deletedIds.includes(conv.id))
         const filteredConversations = allAPPConversationData.filter(conv => !deletedIds.includes(conv.id))
-
-        // handle current conversation id
-        // const _conversationId = getConversationIdFromStorage(APP_ID)
-        // const isNotNewConversation = filteredConversations.some(item => item.id === _conversationId)
-
-        // console.log('appParams', appParams)
 
         // fetch new conversation info
         const { user_input_form, opening_statement: introduction, file_upload, system_parameters }: any = appParams
@@ -397,13 +378,6 @@ const Main: FC<IMainProps> = ({
           prompt_template: promptTemplate,
           prompt_variables,
         } as PromptConfig)
-        // setVisionConfig({
-        //   enabled: file_upload?.allowed_file_types.includes('image') && !!file_upload?.enabled,
-        //   number_limits: 2,
-        //   detail: Resolution.low,
-        //   transfer_methods: [TransferMethod.local_file],
-        //   image_file_size_limit: system_parameters?.system_parameters || 0,
-        // })
         setVisionConfig({
           // legacy of image upload compatible
           ...file_upload,
@@ -414,15 +388,6 @@ const Main: FC<IMainProps> = ({
         })
         setConversationList(filteredConversations)
         updateSidebarList(filteredConversations)
-
-        // 修改这里的逻辑，优先考虑 params 中的 isNewChat
-        // if (params?.isNewChat) {
-        //   // 如果是新对话，强制设置为 '-1'
-        //   setCurrConversationId('-1', APP_ID, false)
-        // } else if (isNotNewConversation) {
-        //   // 只有在不是新对话时，才使用存储的会话 ID
-        //   setCurrConversationId(_conversationId, APP_ID, false)
-        // }
 
         setInited(true)
       }
@@ -611,8 +576,11 @@ const Main: FC<IMainProps> = ({
 
           if (isFirstMessage && newConversationId) {
             tempNewConversationId = newConversationId
-            history.pushState(null, '', `/chat/${tempNewConversationId}`)
-            updateConversationName(tempNewConversationId)
+            history.pushState(null, '', `/chat/${APP_ID}/${tempNewConversationId}`)
+            if (getConversationIdChangeBecauseOfNew()) {
+              updateConversationName(tempNewConversationId)
+              setConversationIdChangeBecauseOfNew(false)
+            }
           }
 
           setMessageTaskId(taskId)
@@ -638,7 +606,7 @@ const Main: FC<IMainProps> = ({
             setConversationIdChangeBecauseOfNew(false)
             // setCurrConversationId(newConversationId, APP_ID)
             // updateSidebarConversationId(newConversationId)
-            router.push(`/chat/${tempNewConversationId}`)
+            router.push(`/chat/${APP_ID}/${tempNewConversationId}`)
           }
           resetNewConversationInputs()
           setChatNotStarted()
@@ -965,13 +933,28 @@ const Main: FC<IMainProps> = ({
         await generationConversationName(conversationId, title)
 
         // 更新本地状态
-        const { data: allConversations }: any = await fetchConversations()
+        const conversationData = await fetchConversations()
 
+        let allAPPConversationData: newConversationItem[] = []
+        const currentConversationData = conversationData as { data: ConversationItem[] }
+        allAPPConversationData = currentConversationData.data.map(item => ({ ...item, appId: APP_ID }) as newConversationItem)
+        // if (pathname === '/' || pathname?.startsWith('/chat/')) {
+        if (true) {
+          for (const appId of Object.keys(AI_PLUS_CONFIGS).filter(item => item !== APP_ID)) {
+            window.localStorage.setItem('x-app-id', AI_PLUS_CONFIGS[appId].appId);
+            const newConversationData = await fetchConversations() as { data: ConversationItem[] }
+            allAPPConversationData.push(...newConversationData.data.map(item => ({ ...item, appId: AI_PLUS_CONFIGS[appId].appId }) as newConversationItem))
+          }
+          window.localStorage.setItem('x-app-id', APP_ID);
+          allAPPConversationData.sort((a, b) => new Date(b.updated_at || '').getTime() - new Date(a.updated_at || '').getTime())
+
+        }
+        // const appParams = await fetchAppParams()
         // 获取已删除的会话 ID
         const deletedIds = getDeletedConversations()
 
         // 过滤掉已删除的会话
-        const filteredConversations = allConversations.filter((conv: any) => !deletedIds.includes(conv.id))
+        const filteredConversations = allAPPConversationData.filter(conv => !deletedIds.includes(conv.id))
 
         setConversationList(filteredConversations)
         // 使用最新的过滤后的会话列表更新 sidebar

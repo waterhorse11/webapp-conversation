@@ -36,6 +36,7 @@ export const sendChatMessage = async (
     body: {
       ...body,
       response_mode: 'streaming',
+      auto_generate_name: false,
     },
   }, { onData, onCompleted, onThought, onFile, onError, getAbortController, onMessageEnd, onMessageReplace, onNodeStarted, onWorkflowStarted, onWorkflowFinished, onNodeFinished })
 }

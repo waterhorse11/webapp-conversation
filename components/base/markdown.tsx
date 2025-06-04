@@ -89,12 +89,12 @@ export function Markdown(props: { content: string; isStreaming?: boolean }) {
           <div className="flex items-center flex-1">
             <LightBulbIcon className={`w-5 h-5 mr-2 ${hasQuoteContent ? 'text-blue-600' : 'text-gray-400'}`} />
             <span className="text-[14px] text-gray-800">
-              {hasQuoteContent ? '已完成思考' : '正在思考...'}
+              {hasQuoteContent ? t('common.operation.thinkingDone') : t('common.operation.thinking')}
             </span>
           </div>
           {hasQuoteContent && (
             <div className="flex items-center text-[13px] text-gray-500">
-              <span>{allExpanded ? '收起思考内容' : '展开思考内容'}</span>
+              <span>{allExpanded ? t('common.operation.thinkingContentCollapse') : t('common.operation.thinkingContent')}</span>
               {allExpanded ? (
                 <ChevronUpIcon className="w-4 h-4 ml-1" />
               ) : (
